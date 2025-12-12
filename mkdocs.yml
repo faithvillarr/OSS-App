@@ -1,0 +1,59 @@
+site_name: OSS-APP
+site_description: 'A professional-grade Python application for ticketing integration with AI and chatbot capabilities.'
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - scheme: default
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - content.code.copy
+
+nav:
+  - 'Overview': 'index.md'
+  - 'Design': 'DESIGN.md'
+  - 'Contributing': 'CONTRIBUTING.md'
+  - 'Task Client':
+      - 'API Reference': 'libraries/task_client_api.md'
+      - 'Google Tasks Implementation': 'libraries/gtask_client_impl.md'
+      - 'Service': 'libraries/task_client_service.md'
+      - 'Service Client': 'libraries/task_client_service_client.md'
+      - 'Adapter': 'libraries/task_client_adapter.md'
+  - 'Tickets':
+      - 'API Reference': 'libraries/tickets_api.md'
+      - 'Implementation': 'libraries/tickets_client_impl.md'
+  - 'Testing': 'testing.md'
+  - 'CI/CD Setup': 'circleci-setup.md'
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            search_paths:
+              - src/task_client_api/src
+              - src/gtask_client_impl/src
+              - src/task_client_service/src
+              - src/task_client_adapter/src
+              - src/task_client_service_client/src
+              - src/tickets_api/src
+              - src/tickets_client_impl/src
+            show_source: false
+            docstring_section_style: spacy
+            members_order: source
