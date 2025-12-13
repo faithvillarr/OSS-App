@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slack-api"
+version = "0.1.0"
+description = "Abstract Slack-like chat API contracts and types"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Team 4" }]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Typing :: Typed",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["slack_api*"]
+
+[tool.setuptools.package-data]
+slack_api = ["py.typed"]
