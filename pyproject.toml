@@ -37,6 +37,7 @@ members = [
   "src/tickets_api",
   "src/tickets_client_impl",
   "src/chat_api",
+  "src/chat_service",
   "src/slack_api",
   "src/slack_impl",
   "src/slack_service",
@@ -77,6 +78,8 @@ mypy_path = [
     "src/task_client_adapter/src",
     "src/tickets_api/src",
     "src/tickets_client_impl/src",
+    "src/chat_api",
+    "src/chat_service/src",
 ]
 
 ignore_missing_imports = false
