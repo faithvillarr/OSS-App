@@ -50,7 +50,7 @@ def _process_message(
     message_user: str,
 ) -> None:
     """Process a single message: check for ticket commands and respond.
-    
+
     Args:
         client: Slack WebClient instance.
         channel_id: The channel ID where the message was posted.
@@ -62,35 +62,35 @@ def _process_message(
     if message_user.startswith("B") and len(message_user) == BOT_USER_ID_LENGTH:
         logger.debug("Skipping bot message from %s", message_user)
         return
-    
+
     # Check if message contains a ticket command
     if not CommandParser.is_ticket_command(message_text):
         logger.debug("Message does not contain ticket command, skipping")
         return
-    
+
     logger.info(
         "Processing ticket command in message %s from user %s in channel %s",
         message_ts,
         message_user,
         channel_id,
     )
-    
+
     # Parse and execute command
     parsed = CommandParser.parse_command(message_text)
     if not parsed:
         logger.warning("Failed to parse command from message: %s", message_text)
         return
-    
+
     command_name, args = parsed
     success, response_message, _ = _tickets_integration.execute_command(
         command_name, args
     )
-    
+
     # Create response message
     response_content = response_message
     if not success:
         response_content = f"Error: {response_message}"
-    
+
     # Post response to Slack
     try:
         client.chat_postMessage(channel=channel_id, text=response_content)
@@ -109,17 +109,17 @@ def _process_message(
 
 async def _poll_channel(channel_id: str, bot_token: str) -> None:
     """Poll a single channel for new messages.
-    
+
     Args:
         channel_id: The channel ID to poll.
         bot_token: Bot token for Slack API.
     """
     client = SlackWebClient(token=bot_token)
-    
+
     try:
         # Get last processed timestamp for this channel
         last_ts = _last_processed_ts.get(channel_id, time.time())
-        
+
         # Fetch recent messages from Slack
         # Use oldest parameter to get messages newer than last_ts
         resp = client.conversations_history(
@@ -127,41 +127,41 @@ async def _poll_channel(channel_id: str, bot_token: str) -> None:
             limit=50,  # Fetch up to 50 messages
             oldest=str(last_ts),  # Only get messages newer than last processed
         )
-        
+
         messages = resp.get("messages", [])
         if not messages:
             logger.debug("No new messages in channel %s", channel_id)
             return
-        
+
         # Process messages in reverse order (oldest first)
         # This ensures we process them chronologically
         messages.reverse()
-        
+
         newest_ts = last_ts
         for msg in messages:
             msg_ts_str = msg.get("ts", "")
             if not msg_ts_str:
                 continue
-            
+
             try:
                 msg_ts = float(msg_ts_str)
             except (ValueError, TypeError):
                 logger.warning("Invalid timestamp in message: %s", msg_ts_str)
                 continue
-            
+
             # Skip if we've already processed this message
             if msg_ts <= last_ts:
                 continue
-            
+
             # Process the message
             message_text = msg.get("text", "")
             message_user = msg.get("user", "unknown")
-            
+
             _process_message(client, channel_id, message_text, msg_ts_str, message_user)
-            
+
             # Update newest timestamp
             newest_ts = max(newest_ts, msg_ts)
-        
+
         # Update last processed timestamp
         if newest_ts > last_ts:
             _last_processed_ts[channel_id] = newest_ts
@@ -170,9 +170,13 @@ async def _poll_channel(channel_id: str, bot_token: str) -> None:
                 channel_id,
                 newest_ts,
             )
-    
+
     except SlackApiError as exc:
-        error_msg = exc.response.get("error", "unknown error") if hasattr(exc, "response") else str(exc)
+        error_msg = (
+            exc.response.get("error", "unknown error")
+            if hasattr(exc, "response")
+            else str(exc)
+        )
         logger.exception("Error polling channel %s: %s", channel_id, error_msg)
     except Exception as e:
         logger.exception("Unexpected error polling channel %s", channel_id)
@@ -184,7 +188,7 @@ async def _polling_loop() -> None:
 
     logger.info("Starting message polling loop")
     _polling_active = True
-    
+
     while _polling_active:
         try:
             # Get monitored channels
@@ -193,7 +197,7 @@ async def _polling_loop() -> None:
                 logger.debug("No channels to monitor, sleeping...")
                 await asyncio.sleep(30)
                 continue
-            
+
             # Get bot token from store
             # For now, we'll use a specific user's bot token from environment variable
             # In a multi-user scenario, we might need to track which user's token to use
@@ -218,23 +222,23 @@ async def _polling_loop() -> None:
                 )
                 await asyncio.sleep(30)
                 continue
-            
+
             logger.debug(
                 "Polling %d channels with bot token for user %s",
                 len(channels),
                 bot_user_id,
             )
-            
+
             # Poll each channel
             for channel_id in channels:
                 await _poll_channel(channel_id, bot_token)
-            
+
         except Exception:
             logger.exception("Error in polling loop")
-        
+
         # Sleep for 30 seconds before next poll
         await asyncio.sleep(30)
-    
+
     logger.info("Message polling loop stopped")
 
 
@@ -267,10 +271,4 @@ def stop_polling() -> None:
 
     if _polling_task and not _polling_task.done():
         _polling_task.cancel()
-        try:
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(_polling_task)
-        except (asyncio.CancelledError, RuntimeError):
-            pass
         _polling_task = None
-

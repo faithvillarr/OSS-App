@@ -10,7 +10,6 @@ dependencies = [
     "openapi-python-client>=0.27.1",
     "python-dotenv>=1.0.0",
     "types-requests>=2.32.4.20250913",
-    "slack-sdk>=3.37.0",
 ]
 
 [project.optional-dependencies]
@@ -29,20 +28,14 @@ dev = [
 
 [tool.uv.workspace]
 members = [
-  "src/task_client_api",
-  "src/gtask_client_impl",
-  "src/task_client_service",
-  "src/task_client_adapter",
-  "src/task_client_service_client",
-  "src/tickets_api",
-  "src/tickets_client_impl",
   "src/chat_api",
   "src/chat_service",
+  "src/gtask_client_impl",
   "src/slack_api",
   "src/slack_impl",
-  "src/slack_service",
-  "src/slack_adapter",
-  "clients/python/slack_service_client",
+  "src/task_client_api",
+  "src/tickets_api",
+  "src/tickets_client_impl",
 ]
 
 [tool.ruff]
@@ -70,16 +63,16 @@ ignore = [
 strict = true
 explicit_package_bases = true # Required for src layout
 
+
 mypy_path = [
-    "src/task_client_api/src",
-    "src/gtask_client_impl/src",
-    "src/task_client_service/src",
-    "src/task_client_service_client/src",
-    "src/task_client_adapter/src",
-    "src/tickets_api/src",
-    "src/tickets_client_impl/src",
-    "src/chat_api",
-    "src/chat_service/src",
+  "src/chat_api",
+  "src/chat_service",
+  "src/gtask_client_impl",
+  "src/slack_api",
+  "src/slack_impl",
+  "src/task_client_api",
+  "src/tickets_api",
+  "src/tickets_client_impl",
 ]
 
 ignore_missing_imports = false

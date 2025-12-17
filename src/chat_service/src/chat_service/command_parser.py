@@ -12,10 +12,7 @@ class CommandParser:
 
     # Pattern to match command_name(arg1, arg2, ...)
     # Supports quoted strings and unquoted arguments
-    COMMAND_PATTERN = re.compile(
-        r"(\w+)\s*\(([^)]*)\)",
-        re.IGNORECASE,
-    )
+    COMMAND_PATTERN = re.compile(r"(\w+)\s*\((.*)\)\s*$", re.IGNORECASE)
 
     @staticmethod
     def parse_args(args_str: str) -> list[str]:
@@ -68,22 +65,17 @@ class CommandParser:
 
     @staticmethod
     def parse_command(message: str) -> tuple[str, list[str]] | None:
-        """Parse a command from a message.
-
-        Args:
-            message: The message text to parse.
-
-        Returns:
-            Tuple of (command_name, args) if a command is found, None otherwise.
-
-        """
         match = CommandParser.COMMAND_PATTERN.search(message)
         if not match:
             return None
 
         command_name = match.group(1).lower()
         args_str = match.group(2)
-        args = CommandParser.parse_args(args_str)
+
+        try:
+            args = CommandParser.parse_args(args_str)
+        except ValueError:
+            return None
 
         return command_name, args
 

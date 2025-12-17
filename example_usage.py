@@ -8,8 +8,9 @@ When run without authentication, operations will fail as expected.
 """
 
 import httpx
-from chat_api import ChatInterface, Message
 from slack_adapter import SlackServiceBackedClient
+
+from chat_api import ChatInterface, Message
 
 
 class SlackChatAdapter(ChatInterface):
@@ -22,6 +23,7 @@ class SlackChatAdapter(ChatInterface):
             base_url: Base URL of the Slack service
             access_token: Optional access token for authentication.
                          If not provided, will attempt to use session-based auth.
+
         """
         self.base_url = base_url.rstrip("/")
         self.access_token = access_token
@@ -40,7 +42,7 @@ class SlackChatAdapter(ChatInterface):
             else:
                 # Without token, rely on session-based auth (requires cookies)
                 http_client = httpx.Client(base_url=self.base_url)
-            
+
             self._client = SlackServiceBackedClient(
                 base_url=self.base_url,
                 http=http_client,
@@ -77,6 +79,7 @@ class SlackChatAdapter(ChatInterface):
 
         Returns:
             True if the message was sent successfully, False otherwise
+
         """
         try:
             client = self._get_client()
@@ -96,6 +99,7 @@ class SlackChatAdapter(ChatInterface):
 
         Returns:
             List of Message objects
+
         """
         try:
             data = self._make_request(
@@ -103,44 +107,44 @@ class SlackChatAdapter(ChatInterface):
                 path=f"/channels/{channel_id}/messages",
                 params={"limit": str(limit)},
             )
-            
+
             # Extract messages from response
             messages_data = data.get("messages", [])
             if not isinstance(messages_data, list):
                 return []
-            
+
             # Convert service messages to ChatInterface messages
             result: list[Message] = []
             for msg_data in messages_data:
                 if not isinstance(msg_data, dict):
                     continue
-                
+
                 # Create a concrete Message implementation
                 msg_id = str(msg_data.get("id", ""))
                 content = str(msg_data.get("text", ""))
                 sender_id = str(msg_data.get("user", ""))
-                
+
                 # Create a simple Message implementation
                 class ChatMessage(Message):
                     def __init__(self, msg_id: str, content: str, sender_id: str):
                         self._id = msg_id
                         self._content = content
                         self._sender_id = sender_id
-                    
+
                     @property
                     def id(self) -> str:
                         return self._id
-                    
+
                     @property
                     def content(self) -> str:
                         return self._content
-                    
+
                     @property
                     def sender_id(self) -> str:
                         return self._sender_id
-                
+
                 result.append(ChatMessage(msg_id, content, sender_id))
-            
+
             return result
         except Exception as e:
             print(f"Failed to get messages: {e}")
@@ -155,6 +159,7 @@ class SlackChatAdapter(ChatInterface):
 
         Returns:
             True if the message was deleted successfully, False otherwise
+
         """
         try:
             resp = self._get_client()._do_request(
@@ -180,18 +185,18 @@ def main() -> None:
     print("ChatInterface Example with Slack Implementation")
     print("=" * 60)
     print()
-    
+
     # Create the adapter
     # Note: Without authentication, this will fail as expected
     adapter = SlackChatAdapter(base_url="http://localhost:8000")
-    
+
     try:
         # Check if the service is healthy
         client = adapter._get_client()
         is_healthy = client.health()
         print(f"Service health check: {'✓ Healthy' if is_healthy else '✗ Unhealthy'}")
         print()
-        
+
         # Try to list channels (this requires authentication)
         print("Attempting to list channels...")
         channels = client.list_channels()
@@ -199,7 +204,7 @@ def main() -> None:
         if channels:
             print(f"First channel: {channels[0].name} (ID: {channels[0].id})")
         print()
-        
+
         # Try to get messages from a channel
         # This will fail if not authenticated or if channel doesn't exist
         if channels:
@@ -210,7 +215,7 @@ def main() -> None:
             for msg in messages:
                 print(f"  - [{msg.id}] {msg.sender_id}: {msg.content[:50]}...")
             print()
-            
+
             # Try to send a message
             print(f"Attempting to send a message to channel {channel_id}...")
             success = adapter.send_message(channel_id, "Hello from ChatInterface!")
@@ -221,7 +226,7 @@ def main() -> None:
             print("  1. Complete the OAuth flow at http://localhost:8000/auth/login")
             print("  2. Ensure your Slack workspace has accessible channels")
             print()
-        
+
     except Exception as e:
         print(f"Error: {e}")
         print()
@@ -237,4 +242,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

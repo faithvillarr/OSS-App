@@ -64,7 +64,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         )
 
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Chat Service...")
     stop_polling()
@@ -80,9 +80,15 @@ app = FastAPI(
 # Add session middleware
 # Note: SessionMiddleware will automatically use secure cookies when the request
 # is made over HTTPS (detected via the request scheme)
+SESSION_SECRET = os.environ.get("SESSION_SECRET")
+
+if not SESSION_SECRET:
+    err_msg = "SESSION_SECRET must be set in non-dev environments"
+    raise RuntimeError(err_msg)
+
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production"),
+    secret_key=SESSION_SECRET,
     same_site="lax",
 )
 
@@ -116,4 +122,3 @@ def root() -> dict[str, str]:
         "version": "0.1.0",
         "docs": "/docs",
     }
-
