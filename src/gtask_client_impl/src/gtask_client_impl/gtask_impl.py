@@ -49,7 +49,7 @@ class GTaskClient(task_client_api.Client):
 
     FAILURE_TO_CRED = "Failed to obtain credentials. Please check your setup."
 
-    def __init__(self, service: Resource | None = None, *, interactive: bool = False) -> None:
+    def __init__(self, service: Resource | None = None, *, interactive: bool = True) -> None:
         """Initialize the GTaskClient, handling authentication."""
         self.logger = logging.getLogger(__name__)
         self.auth_manager = OAuthManager(logger=self.logger)

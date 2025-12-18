@@ -53,6 +53,21 @@ resource "google_cloud_run_service" "chat_service" {
           value = var.session_secret != "" ? var.session_secret : random_id.session_secret.hex
         }
 
+        env {
+          name  = "OAUTH_CLIENT_ID"
+          value = var.slack_client_id
+        }
+
+        env {
+          name  = "OAUTH_CLIENT_SECRET"
+          value = var.slack_client_secret
+        }
+
+        env {
+          name  = "OAUTH_REDIRECT_URI"
+          value = var.slack_redirect_uri
+        }
+
         resources {
           limits = {
             cpu    = var.cpu
@@ -67,8 +82,8 @@ resource "google_cloud_run_service" "chat_service" {
 
     metadata {
       annotations = {
-        "autoscaling.knative.dev/minScale" = tostring(var.min_instances)
-        "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
+        "autoscaling.knative.dev/minScale"         = tostring(var.min_instances)
+        "autoscaling.knative.dev/maxScale"         = tostring(var.max_instances)
         "run.googleapis.com/execution-environment" = "gen2"
       }
     }
@@ -92,5 +107,5 @@ resource "google_cloud_run_service_iam_member" "public_access" {
   location = google_cloud_run_service.chat_service.location
   project  = var.project_id
   role     = "roles/run.invoker"
-  member    = "allUsers"
+  member   = "allUsers"
 }

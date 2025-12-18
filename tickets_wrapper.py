@@ -22,7 +22,7 @@ def _initialize_client() -> TicketsClient | None:
     """
     logger.info("\n[1] Initializing TicketsClient...")
     try:
-        client = TicketsClient(interactive=False)
+        client = TicketsClient(interactive=True)
         logger.info("✓ TicketsClient initialized successfully")
     except Exception:
         logger.exception("✗ Failed to initialize TicketsClient")
