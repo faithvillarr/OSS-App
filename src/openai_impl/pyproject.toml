@@ -1,0 +1,48 @@
+[project]
+name = "openai-impl"
+version = "0.1.0"
+description = "OpenAI implementation of the AI API"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.0.0",
+    "ai-api",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-mock>=3.10.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "src"]
+testpaths = ["tests", "src"]
+addopts = ["--cov", "--cov-report=term-missing"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", ]
+
+[tool.coverage.report]
+fail_under = 85
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend = "../../pyproject.toml"
+
+[tool.ruff.lint]
+ignore = []
+
+[tool.uv.sources]
+ai-api = { workspace = true }
