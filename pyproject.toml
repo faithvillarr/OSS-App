@@ -39,6 +39,9 @@ members = [
   "src/discord_client_impl",
   "src/chat_api",
   "src/chat_client_impl",
+
+  "src/ai_api",
+  "src/openai_impl",
 ]
 
 [tool.ruff]
@@ -81,6 +84,10 @@ mypy_path = [
   "src/discord_client_impl",
   "src/chat_api",
   "src/chat_client_impl",
+
+  # AI Directories
+  "src/ai_api",
+  "src/openai_impl",
 ]
 
 ignore_missing_imports = false
