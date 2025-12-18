@@ -1,0 +1,1 @@
+# Shared Chat API Contract
