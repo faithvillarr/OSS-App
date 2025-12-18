@@ -28,14 +28,17 @@ dev = [
 
 [tool.uv.workspace]
 members = [
-  "src/chat_api",
   "src/main_service",
+
   "src/gtask_client_impl",
-  "src/slack_api",
-  "src/slack_impl",
   "src/task_client_api",
   "src/tickets_api",
   "src/tickets_client_impl",
+
+  "src/discord_api",
+  "src/discord_client_impl",
+  "src/chat_api",
+  "src/chat_client_impl",
 ]
 
 [tool.ruff]
@@ -65,14 +68,19 @@ explicit_package_bases = true # Required for src layout
 
 
 mypy_path = [
-  "src/chat_api",
   "src/main_service",
+
+  # Ticketing Directories
   "src/gtask_client_impl",
-  "src/slack_api",
-  "src/slack_impl",
   "src/task_client_api",
   "src/tickets_api",
   "src/tickets_client_impl",
+
+  # Chat Directories
+  "src/discord_api",
+  "src/discord_client_impl",
+  "src/chat_api",
+  "src/chat_client_impl",
 ]
 
 ignore_missing_imports = false
