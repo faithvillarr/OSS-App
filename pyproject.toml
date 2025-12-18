@@ -29,7 +29,7 @@ dev = [
 [tool.uv.workspace]
 members = [
   "src/chat_api",
-  "src/chat_service",
+  "src/main_service",
   "src/gtask_client_impl",
   "src/slack_api",
   "src/slack_impl",
@@ -66,7 +66,7 @@ explicit_package_bases = true # Required for src layout
 
 mypy_path = [
   "src/chat_api",
-  "src/chat_service",
+  "src/main_service",
   "src/gtask_client_impl",
   "src/slack_api",
   "src/slack_impl",

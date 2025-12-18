@@ -83,7 +83,7 @@ export OAUTH_CLIENT_SECRET="your-slack-client-secret"
 export OAUTH_REDIRECT_URI="http://localhost:8080/auth/callback"
 
 # Run the service
-uv run uvicorn chat_service.app:app --reload --port 8080
+uv run uvicorn main_service.app:app --reload --port 8080
 ```
 
 ## Authentication

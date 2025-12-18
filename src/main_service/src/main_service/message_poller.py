@@ -8,9 +8,9 @@ import time
 from slack_sdk import WebClient as SlackWebClient
 from slack_sdk.errors import SlackApiError
 
-from chat_service.command_parser import CommandParser
-from chat_service.dependencies import get_bot_token
-from chat_service.tickets_integration import TicketsIntegration
+from main_service.command_parser import CommandParser
+from main_service.dependencies import get_bot_token
+from main_service.tickets_integration import TicketsIntegration
 
 logger = logging.getLogger(__name__)
 

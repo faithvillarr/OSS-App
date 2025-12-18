@@ -1,5 +1,5 @@
 # Service Account for Cloud Run Service Identity
-resource "google_service_account" "chat_service_account" {
+resource "google_service_account" "main_service_account" {
   account_id   = "${var.service_name}-sa"
   display_name = "Service account for ${var.service_name}"
   description  = "Service account used as Cloud Run service identity for ${var.service_name}"
@@ -12,11 +12,11 @@ resource "google_project_iam_member" "service_account_permissions" {
   for_each = toset(var.service_account_roles)
   project  = var.project_id
   role     = each.value
-  member   = "serviceAccount:${google_service_account.chat_service_account.email}"
+  member   = "serviceAccount:${google_service_account.main_service_account.email}"
 }
 
 # Cloud Run Service
-resource "google_cloud_run_service" "chat_service" {
+resource "google_cloud_run_service" "main_service" {
   name     = var.service_name
   location = var.region
   project  = var.project_id
@@ -24,7 +24,7 @@ resource "google_cloud_run_service" "chat_service" {
   template {
     spec {
       # Configure service identity - this is what allows the service to call Google Cloud APIs
-      service_account_name = google_service_account.chat_service_account.email
+      service_account_name = google_service_account.main_service_account.email
 
       containers {
         image = var.image
@@ -88,8 +88,8 @@ resource "random_id" "session_secret" {
 # IAM policy for public access (if allow_unauthenticated is true)
 resource "google_cloud_run_service_iam_member" "public_access" {
   count    = var.allow_unauthenticated ? 1 : 0
-  service  = google_cloud_run_service.chat_service.name
-  location = google_cloud_run_service.chat_service.location
+  service  = google_cloud_run_service.main_service.name
+  location = google_cloud_run_service.main_service.location
   project  = var.project_id
   role     = "roles/run.invoker"
   member    = "allUsers"

@@ -151,7 +151,7 @@ source = { editable = "src/chat_api" }
 [[package]]
 name = "chat-service"
 version = "0.1.0"
-source = { editable = "src/chat_service" }
+source = { editable = "src/main_service" }
 dependencies = [
     { name = "fastapi" },
     { name = "itsdangerous" },

@@ -4,11 +4,11 @@
 
 if [ -f /app/certs/server.key ] && [ -f /app/certs/server.crt ]; then
     echo "Starting with HTTPS..."
-    exec uvicorn chat_service.app:app --host 0.0.0.0 --port 8080 \
+    exec uvicorn main_service.app:app --host 0.0.0.0 --port 8080 \
         --ssl-keyfile /app/certs/server.key \
         --ssl-certfile /app/certs/server.crt
 else
     echo "Starting with HTTP (no SSL certificates found)..."
-    exec uvicorn chat_service.app:app --host 0.0.0.0 --port 8080
+    exec uvicorn main_service.app:app --host 0.0.0.0 --port 8080
 fi
 

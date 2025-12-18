@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from starlette.middleware.sessions import SessionMiddleware
 
-from chat_service.message_poller import start_polling, stop_polling
-from chat_service.routers import auth_router, chat_router, tickets_router
+from main_service.message_poller import start_polling, stop_polling
+from main_service.routers import auth_router, chat_router, tickets_router
 
 # Load environment variables
 load_dotenv()

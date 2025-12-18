@@ -3,8 +3,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from chat_service.command_parser import CommandParser
-from chat_service.tickets_integration import TicketsIntegration
+from main_service.command_parser import CommandParser
+from main_service.tickets_integration import TicketsIntegration
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 

@@ -1,6 +1,6 @@
 """Chat Service with Tickets Integration."""
 
-from chat_service.app import app
+from main_service.app import app
 
 __all__ = ["app"]
 

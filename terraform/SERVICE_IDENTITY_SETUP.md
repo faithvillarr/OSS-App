@@ -32,7 +32,7 @@ According to the [Google Cloud documentation](https://docs.cloud.google.com/run/
 The Terraform configuration creates a dedicated service account:
 
 ```hcl
-resource "google_service_account" "chat_service_account" {
+resource "google_service_account" "main_service_account" {
   account_id   = "${var.service_name}-sa"
   display_name = "Service account for ${var.service_name}"
   ...
@@ -46,7 +46,7 @@ The Cloud Run service is configured to use this service account:
 ```hcl
 template {
   spec {
-    service_account_name = google_service_account.chat_service_account.email
+    service_account_name = google_service_account.main_service_account.email
     ...
   }
 }
@@ -63,7 +63,7 @@ resource "google_project_iam_member" "service_account_permissions" {
   for_each = toset(var.service_account_roles)
   project  = var.project_id
   role     = each.value
-  member   = "serviceAccount:${google_service_account.chat_service_account.email}"
+  member   = "serviceAccount:${google_service_account.main_service_account.email}"
 }
 ```
 
