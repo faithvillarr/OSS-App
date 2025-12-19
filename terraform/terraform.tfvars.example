@@ -10,6 +10,10 @@ tasks_client_id     = "your-client-id.apps.googleusercontent.com"
 tasks_client_secret = "your-client-secret"
 tasks_refresh_token = "your-refresh-token"
 
+slack_client_id     = "your-slack-client-id"
+slack_client_secret = "your-slack-client-secret"
+slack_redirect_uri  = "https://chat-service-zmey67bkoq-uc.a.run.app/auth/callback"
+
 # Optional: Session secret (auto-generated if not provided)
 # session_secret = "your-secret-key"
 

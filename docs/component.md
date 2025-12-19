@@ -19,7 +19,7 @@ Every workspace component lives under `src/<component_name>/` and represents eit
 - `[tool.uv.sources]`: declare workspace dependencies when another component is required.
 
 ## README Expectations
-Document, at minimum: overview, scope, exposed interfaces, usage pattern, and component dependencies. Keep examples using absolute imports.
+Document, at minimum: overview, scope, exposed interfaces, usage pattern, and component dependencies. Keep examples using absolute import.
 
 ## Implementation Notes (`_impl.py`)
 Place concrete classes here so `__init__.py` can focus on exports and dependency injection wiring.

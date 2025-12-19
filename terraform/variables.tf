@@ -87,3 +87,21 @@ variable "service_account_roles" {
     # "roles/secretmanager.secretAccessor"  # For Secret Manager
   ]
 }
+
+variable "slack_client_id" {
+  description = "Slack OAuth Client ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "slack_client_secret" {
+  description = "Slack OAuth Client Secret"
+  type        = string
+  sensitive   = true
+}
+
+variable "slack_redirect_uri" {
+  description = "Slack OAuth Redirect URI"
+  type        = string
+  default     = ""  # Will be auto-generated from service URL if not provided
+}
