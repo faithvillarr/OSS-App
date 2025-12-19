@@ -1,4 +1,3 @@
-
 version: 2.1
 
 # Orbs provide reusable CircleCI configuration
@@ -15,7 +14,7 @@ executors:
 # Define reusable commands
 commands:
   install-uv:
-    description: "Install uv package manager"
+    description: 'Install uv package manager'
     steps:
       - run:
           name: Install uv
@@ -26,26 +25,17 @@ commands:
             uv --version
 
   setup-project:
-    description: "Set up project dependencies with uv"
+    description: 'Set up project dependencies with uv'
     steps:
       - run:
           name: Sync dependencies with uv
           command: |
-            uv sync --all-packages --extra dev
-            
-            # Install additional test dependencies
-            uv pip install respx google-api-python-client pytest-mock
-            
-            # Install workspace packages in development mode
-            for pkg in src/*/ ; do
-              if [ -f "$pkg/pyproject.toml" ]; then
-                echo "Installing $pkg in development mode..."
-                uv pip install -e "$pkg"
-              fi
-            done
-            
+            # Sync all workspace packages with dev and test extras
+            # This installs all packages in editable mode and includes test dependencies
+            uv sync --all-packages --extra dev --extra test
+
   save-test-results:
-    description: "Save test results and coverage"
+    description: 'Save test results and coverage'
     steps:
       - run:
           name: Convert coverage to XML
@@ -85,6 +75,7 @@ jobs:
       - attach_workspace:
           at: ~/project
       - install-uv
+      - setup-project
       - run:
           name: Run Ruff linting
           command: |
@@ -104,6 +95,7 @@ jobs:
       - attach_workspace:
           at: ~/project
       - install-uv
+      - setup-project
       - run:
           name: Create test results directory
           command: mkdir -p test-results
@@ -113,7 +105,7 @@ jobs:
             # First attempt to run basic unit tests without coverage requirements
             # to ensure all tests can be discovered and imported correctly
             uv run pytest src/ --junitxml=test-results/unit-tests.xml -v || echo "Some tests failed, but continuing"
-            
+
             # Then run the tests with coverage requirements
             # This may fail but we'll at least get the coverage reports
             uv run pytest src/ \
@@ -131,6 +123,7 @@ jobs:
       - attach_workspace:
           at: ~/project
       - install-uv
+      - setup-project
       - run:
           name: Create test results directory
           command: mkdir -p test-results
@@ -149,6 +142,7 @@ jobs:
       - attach_workspace:
           at: ~/project
       - install-uv
+      - setup-project
       - run:
           name: Create test results directory
           command: mkdir -p test-results
@@ -174,6 +168,7 @@ jobs:
       - attach_workspace:
           at: ~/project
       - install-uv
+      - setup-project
       - run:
           name: Create test results directory
           command: mkdir -p test-results
@@ -198,6 +193,7 @@ jobs:
       - attach_workspace:
           at: ~/project
       - install-uv
+      - setup-project
       - run:
           name: Generate test summary
           command: |
@@ -213,41 +209,41 @@ jobs:
 # Define workflows
 workflows:
   version: 2
-  
+
   # Main workflow - runs on every push to every branch
   build_test_deploy:
     jobs:
       # Build job runs first
       - build
-      
+
       # Lint and unit tests run in parallel after build
       - lint:
           requires:
             - build
-            
+
       - unit_test:
           requires:
             - build
-      
+
       # CircleCI-compatible tests run after unit tests
       - circleci_test:
           requires:
             - unit_test
-      
+
       # Integration tests run on all branches (with credentials context)
       - integration_test:
           requires:
             - circleci_test
           context:
             - gtask-client
-      
+
       # E2E tests run on all branches (with credentials context)
       - e2e_test:
           requires:
             - circleci_test
           context:
             - gtask-client
-      
+
       # Report summary runs after all tests complete
       - report_summary:
           requires:

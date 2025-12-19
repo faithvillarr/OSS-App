@@ -22,8 +22,13 @@ dev = [
     "pymdown-extensions>=10.16.1",
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
+    "pytest-mock>=3.10.0",
     "ruff>=0.12.7",
     "types-requests>=2.32.4.20250611",
+]
+test = [
+    "pytest-mock>=3.10.0",
+    "respx>=0.20.2",  # HTTP mocking for httpx (used by discord_client_impl tests)
 ]
 
 [tool.uv.workspace]
