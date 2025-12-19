@@ -11,6 +11,12 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "itsdangerous>=2.1,<3.0",
     "slack-sdk>=3.27.0",
+    "ai-api",
+    "openai-impl",
+    "tickets-api",
+    "tickets-client-impl",
+    "chat-api",
+    "chat-client-impl",
 ]
 
 [build-system]
@@ -23,3 +29,11 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["main_service*"]
+
+[tool.uv.sources]
+ai-api = { workspace = true }
+openai-impl = { workspace = true }
+tickets-api = { workspace = true }
+tickets-client-impl = { workspace = true }
+chat-api = { workspace = true }
+chat-client-impl = { workspace = true }

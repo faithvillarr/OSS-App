@@ -6,8 +6,14 @@ import sys
 import time
 from typing import Final
 
+import ai_api
 import chat_api
 import chat_client_impl  # noqa: F401
+import gtask_client_impl  # noqa: F401
+import openai_impl  # noqa: F401
+import tickets_client_impl  # noqa: F401
+from main_service import routing
+from tickets_client_impl import TicketsClient
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,6 +23,75 @@ logger = logging.getLogger(__name__)
 
 # Maximum length for message content in logs
 MAX_LOG_CONTENT_LENGTH = 50
+
+
+def _initialize_ticket_client() -> TicketsClient:
+    """Initialize the ticket client with error handling and logging.
+    
+    Returns:
+        Initialized TicketsClient instance.
+        
+    Raises:
+        SystemExit: If ticket client initialization fails.
+    """
+    logger.info("Initializing ticket client...")
+    try:
+        ticket_client = TicketsClient(interactive=False)
+        logger.info("✓ Ticket client initialized successfully")
+        
+        # Verify the client can access tasklists (health check)
+        try:
+            tasklists = ticket_client._gtask_client.list_tasklists()
+            if tasklists:
+                logger.info("✓ Ticket client health check passed: %d tasklist(s) available", len(tasklists))
+            else:
+                logger.warning("⚠ Ticket client initialized but no tasklists found")
+        except Exception as e:
+            logger.warning("⚠ Ticket client health check failed: %s", e)
+            logger.warning("  Continuing anyway - operations may fail if tasklists are needed")
+        
+        return ticket_client
+    except Exception as e:
+        logger.exception("✗ Failed to initialize ticket client: %s", e)
+        logger.error("  This is a critical error - the service cannot function without ticket client")
+        raise SystemExit(1)
+
+
+def _initialize_ai_client() -> ai_api.AIInterface:
+    """Initialize and validate the AI client with error handling and logging.
+    
+    Returns:
+        Initialized AIInterface instance.
+        
+    Raises:
+        SystemExit: If AI client initialization fails.
+    """
+    logger.info("Initializing AI client...")
+    try:
+        ai_client = ai_api.get_client()
+        logger.info("✓ AI client retrieved successfully")
+        
+        # Verify the client has the required interface (health check)
+        try:
+            if not hasattr(ai_client, 'generate_response'):
+                raise AttributeError("AI client missing 'generate_response' method")
+            if not callable(getattr(ai_client, 'generate_response', None)):
+                raise AttributeError("AI client 'generate_response' is not callable")
+            logger.info("✓ AI client health check passed: interface validated")
+        except Exception as e:
+            logger.warning("⚠ AI client health check failed: %s", e)
+            logger.warning("  Continuing anyway - AI operations may fail at runtime")
+        
+        return ai_client
+    except NotImplementedError:
+        logger.exception("✗ AI client not registered - no implementation found")
+        logger.error("  Ensure an AI implementation (e.g., openai_impl) is imported")
+        raise SystemExit(1)
+    except Exception as e:
+        logger.exception("✗ Failed to initialize AI client: %s", e)
+        logger.error("  This is a critical error - the service cannot function without AI client")
+        raise SystemExit(1)
+
 
 def _determine_bot_user_id(client: chat_api.ChatInterface, channel_id: str) -> str | None:
     """Determine the bot's user ID by sending a test message.
@@ -113,6 +188,7 @@ def _process_new_message(
     msg: chat_api.Message,
     channel_id: str,
     seen_message_ids: set[str],
+    ticket_client: TicketsClient,
 ) -> None:
     """Process a single new message by responding to it.
 
@@ -121,6 +197,7 @@ def _process_new_message(
         msg: The message to process.
         channel_id: The channel ID to send the response to.
         seen_message_ids: Set of seen message IDs to update.
+        ticket_client: The ticket client for executing ticket operations.
 
     """
     msg_id = msg.id
@@ -131,11 +208,34 @@ def _process_new_message(
 
     logger.info("New message from sender=%s: '%s'", msg.sender_id, msg.content)
 
-    # Respond to the new message
-    response = "What a cool message!"
-    success = client.send_message(channel_id=channel_id, content=response)
-    if not success:
-        logger.error("Failed to send response to message %s", msg_id)
+    try:
+        # Extract commands from user message using AI
+        commands = routing.extract_commands(msg.content)
+        
+        if not commands:
+            # No ticket commands found, generate a helpful response
+            response = routing.generate_response(msg.content, [])
+        else:
+            # Execute commands iteratively (one at a time with AI feedback)
+            results = routing.execute_commands_iteratively(
+                user_message=msg.content,
+                initial_commands=commands,
+                ticket_client=ticket_client,
+                max_iterations=5,
+            )
+            
+            # Generate natural language response from all accumulated results
+            response = routing.generate_response(msg.content, results)
+        
+        # Send response to user
+        success = client.send_message(channel_id=channel_id, content=response)
+        if not success:
+            logger.error("Failed to send response to message %s", msg_id)
+    except Exception as e:
+        logger.exception("Error processing message %s: %s", msg_id, e)
+        # Send error response to user
+        error_response = "I encountered an error while processing your request. Please try again."
+        client.send_message(channel_id=channel_id, content=error_response)
 
     # Mark message as seen immediately
     seen_message_ids.add(msg_id)
@@ -147,6 +247,7 @@ def _process_new_messages(
     channel_id: str,
     seen_message_ids: set[str],
     message_check_limit: int,
+    ticket_client: TicketsClient,
 ) -> list[chat_api.Message]:
     """Process all new messages and re-fetch messages to update our view.
 
@@ -156,6 +257,7 @@ def _process_new_messages(
         channel_id: The channel ID.
         seen_message_ids: Set of seen message IDs to update.
         message_check_limit: Maximum number of messages to fetch.
+        ticket_client: The ticket client for executing ticket operations.
 
     Returns:
         Updated list of messages after processing.
@@ -164,7 +266,7 @@ def _process_new_messages(
     logger.info("Found %d new message(s)", len(new_messages))
 
     for msg in new_messages:
-        _process_new_message(client, msg, channel_id, seen_message_ids)
+        _process_new_message(client, msg, channel_id, seen_message_ids, ticket_client)
 
     # Re-fetch messages after sending response to update our view
     # This ensures our own response and any other new messages are tracked
@@ -177,6 +279,7 @@ def _poll_cycle(
     message_check_limit: int,
     seen_message_ids: set[str],
     bot_user_id: str | None,
+    ticket_client: TicketsClient,
 ) -> None:
     """Execute a single polling cycle.
 
@@ -186,6 +289,7 @@ def _poll_cycle(
         message_check_limit: Maximum number of messages to fetch.
         seen_message_ids: Set of seen message IDs to update.
         bot_user_id: The bot's user ID to filter out bot messages.
+        ticket_client: The ticket client for executing ticket operations.
 
     """
     # Fetch the most recent messages
@@ -197,7 +301,7 @@ def _poll_cycle(
     if new_messages:
         # Process new messages and re-fetch to update our view
         messages = _process_new_messages(
-            client, new_messages, channel_id, seen_message_ids, message_check_limit
+            client, new_messages, channel_id, seen_message_ids, message_check_limit, ticket_client
         )
 
     # Update seen set with all current messages (in case we missed some)
@@ -210,6 +314,7 @@ def _run_polling_loop(
     channel_id: str,
     seen_message_ids: set[str],
     bot_user_id: str | None,
+    ticket_client: TicketsClient,
 ) -> None:
     """Run the main polling loop.
 
@@ -220,6 +325,7 @@ def _run_polling_loop(
         message_check_limit: Maximum number of messages to fetch per poll.
         seen_message_ids: Set of seen message IDs to track.
         bot_user_id: The bot's user ID to filter out bot messages.
+        ticket_client: The ticket client for executing ticket operations.
 
     """
     logger.info("Starting polling loop...")
@@ -233,7 +339,7 @@ def _run_polling_loop(
         while True:
             poll_count += 1
             try:
-                _poll_cycle(client, channel_id, message_check_limit, seen_message_ids, bot_user_id)
+                _poll_cycle(client, channel_id, message_check_limit, seen_message_ids, bot_user_id, ticket_client)
                 time.sleep(polling_interval)
             except KeyboardInterrupt:
                 logger.info("Received interrupt signal, shutting down...")
@@ -252,22 +358,48 @@ def _run_polling_loop(
 
 def main() -> None:
     """Run the Discord polling service."""
-    # Start up the service
+    logger.info("Starting Discord message polling service...")
+    
+    # Validate required environment variables
     channel_id = os.getenv("DISCORD_CHANNEL_ID")
     if not channel_id:
         logger.error("DISCORD_CHANNEL_ID environment variable is not set")
         raise SystemExit(1)
+    logger.info("✓ Discord channel ID configured: %s", channel_id)
 
-    client = chat_api.get_client()
-    bot_user_id = _determine_bot_user_id(client, channel_id) # Filter out bot messages
-    seen_message_ids = _initialize_seen_messages(client, channel_id) # Initialize seen messages set
+    # Initialize chat client
+    logger.info("Initializing chat client...")
+    try:
+        client = chat_api.get_client()
+        logger.info("✓ Chat client initialized successfully")
+    except Exception as e:
+        logger.exception("✗ Failed to initialize chat client: %s", e)
+        logger.error("  This is a critical error - the service cannot function without chat client")
+        raise SystemExit(1)
+
+    # Initialize ticket client (with error handling)
+    ticket_client = _initialize_ticket_client()
+
+    # Initialize AI client (with error handling)
+    ai_client = _initialize_ai_client()
+    # Store reference for potential future use, though routing.py gets it on-demand
+    logger.debug("AI client ready for use by routing module")
+
+    # Initialize bot user ID and seen messages
+    logger.info("Determining bot user ID...")
+    bot_user_id = _determine_bot_user_id(client, channel_id)
+    
+    logger.info("Initializing seen messages set...")
+    seen_message_ids = _initialize_seen_messages(client, channel_id)
 
     # Small delay to ensure initialization is complete before starting to poll
     time.sleep(0.1)
 
+    logger.info("All startup checks complete. Service ready.")
+
     # Main polling loop
     _run_polling_loop(
-        client, channel_id, seen_message_ids, bot_user_id
+        client, channel_id, seen_message_ids, bot_user_id, ticket_client
     )
 
 

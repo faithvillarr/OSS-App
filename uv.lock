@@ -299,21 +299,33 @@ name = "chat-service"
 version = "0.1.0"
 source = { editable = "src/main_service" }
 dependencies = [
+    { name = "ai-api" },
+    { name = "chat-api" },
+    { name = "chat-client-impl" },
     { name = "fastapi" },
     { name = "itsdangerous" },
+    { name = "openai-impl" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "slack-sdk" },
+    { name = "tickets-api" },
+    { name = "tickets-client-impl" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "ai-api", editable = "src/ai_api" },
+    { name = "chat-api", editable = "src/chat_api" },
+    { name = "chat-client-impl", editable = "src/chat_client_impl" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "itsdangerous", specifier = ">=2.1,<3.0" },
+    { name = "openai-impl", editable = "src/openai_impl" },
     { name = "pydantic", specifier = ">=2.7.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "slack-sdk", specifier = ">=3.27.0" },
+    { name = "tickets-api", editable = "src/tickets_api" },
+    { name = "tickets-client-impl", editable = "src/tickets_client_impl" },
     { name = "uvicorn", specifier = ">=0.24.0" },
 ]
 
