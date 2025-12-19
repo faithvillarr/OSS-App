@@ -1997,8 +1997,13 @@ dev = [
     { name = "pymdown-extensions" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pytest-mock" },
     { name = "ruff" },
     { name = "types-requests" },
+]
+test = [
+    { name = "pytest-mock" },
+    { name = "respx" },
 ]
 
 [package.dev-dependencies]
@@ -2021,12 +2026,15 @@ requires-dist = [
     { name = "pymdown-extensions", marker = "extra == 'dev'", specifier = ">=10.16.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.2.1" },
+    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.10.0" },
+    { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.10.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "respx", marker = "extra == 'test'", specifier = ">=0.20.2" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.7" },
     { name = "types-requests", specifier = ">=2.32.4.20250913" },
     { name = "types-requests", marker = "extra == 'dev'", specifier = ">=2.32.4.20250611" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "test"]
 
 [package.metadata.requires-dev]
 dev = [
