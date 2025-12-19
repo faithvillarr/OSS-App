@@ -64,7 +64,9 @@ def _start_health_check_server(port: int) -> threading.Thread:
             logger.error("Health check server error: %s", e)
             # Don't exit - let the polling service continue
     
-    server_thread = threading.Thread(target=run_server, daemon=True)
+    # Make this a non-daemon thread so it keeps the process alive
+    # This ensures Cloud Run sees the container as healthy even during initialization
+    server_thread = threading.Thread(target=run_server, daemon=False)
     server_thread.start()
     return server_thread
 
@@ -352,23 +354,21 @@ def _poll_cycle(
         ticket_client: The ticket client for executing ticket operations.
 
     """
-    telemetry = get_telemetry()
-    with telemetry.measure_poll_cycle():
-        # Fetch the most recent messages
-        messages = client.get_messages(channel_id=channel_id, limit=message_check_limit)
+    # Fetch the most recent messages
+    messages = client.get_messages(channel_id=channel_id, limit=message_check_limit)
 
-        # Check for new messages
-        new_messages = _filter_new_messages(messages, seen_message_ids, bot_user_id)
+    # Check for new messages
+    new_messages = _filter_new_messages(messages, seen_message_ids, bot_user_id)
 
-        if new_messages:
-            # Process new messages and re-fetch to update our view
-            messages = _process_new_messages(
-                client, new_messages, channel_id, seen_message_ids, message_check_limit, ticket_client
-            )
+    if new_messages:
+        # Process new messages and re-fetch to update our view
+        messages = _process_new_messages(
+            client, new_messages, channel_id, seen_message_ids, message_check_limit, ticket_client
+        )
 
-        # Update seen set with all current messages (in case we missed some)
-        for msg in messages:
-            seen_message_ids.add(msg.id)
+    # Update seen set with all current messages (in case we missed some)
+    for msg in messages:
+        seen_message_ids.add(msg.id)
 
 
 def _run_polling_loop(

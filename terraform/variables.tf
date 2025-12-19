@@ -79,7 +79,8 @@ variable "service_account_roles" {
   description = "List of IAM roles to grant to the Cloud Run service account"
   type        = list(string)
   default = [
-    "roles/secretmanager.secretAccessor"  # For Secret Manager access
+    "roles/secretmanager.secretAccessor",  # For Secret Manager access
+    "roles/monitoring.metricWriter"        # For OpenTelemetry Collector to export metrics
   ]
 }
 
@@ -119,4 +120,10 @@ variable "openai_api_key" {
   description = "OpenAI API key for AI client"
   type        = string
   sensitive   = true
+}
+
+variable "otel_collector_image" {
+  description = "OpenTelemetry Collector container image"
+  type        = string
+  default     = "otel/opentelemetry-collector-contrib:latest"
 }

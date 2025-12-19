@@ -63,94 +63,115 @@ resource "google_secret_manager_secret_iam_member" "discord_channel_id_accessor"
   project   = var.project_id
 }
 
-# Cloud Run Service
-resource "google_cloud_run_service" "main_service" {
+# Cloud Run Service (v2 API - required for multi-container support)
+resource "google_cloud_run_v2_service" "main_service" {
   name     = var.service_name
   location = var.region
   project  = var.project_id
 
   template {
-    spec {
-      # Configure service identity - this is what allows the service to call Google Cloud APIs
-      service_account_name = google_service_account.main_service_account.email
+    # Configure service identity - this is what allows the service to call Google Cloud APIs
+    service_account = google_service_account.main_service_account.email
 
-      containers {
-        image = var.image
+    containers {
+      name  = "main-service"
+      image = var.image
 
-        ports {
-          container_port = 8080
-        }
+      ports {
+        container_port = 8080
+      }
 
-        env {
-          name  = "TASKS_CLIENT_ID"
-          value = var.tasks_client_id
-        }
+      env {
+        name  = "TASKS_CLIENT_ID"
+        value = var.tasks_client_id
+      }
 
-        env {
-          name  = "TASKS_CLIENT_SECRET"
-          value = var.tasks_client_secret
-        }
+      env {
+        name  = "TASKS_CLIENT_SECRET"
+        value = var.tasks_client_secret
+      }
 
-        env {
-          name  = "TASKS_REFRESH_TOKEN"
-          value = var.tasks_refresh_token
-        }
+      env {
+        name  = "TASKS_REFRESH_TOKEN"
+        value = var.tasks_refresh_token
+      }
 
-        env {
-          name  = "SESSION_SECRET"
-          value = var.session_secret != "" ? var.session_secret : random_id.session_secret.hex
-        }
+      env {
+        name  = "SESSION_SECRET"
+        value = var.session_secret != "" ? var.session_secret : random_id.session_secret.hex
+      }
 
-        env {
-          name  = "OPENAI_API_KEY"
-          value = var.openai_api_key
-        }
+      env {
+        name  = "OPENAI_API_KEY"
+        value = var.openai_api_key
+      }
 
-        # Discord credentials from Secret Manager
-        env {
-          name = "DISCORD_BOT_TOKEN"
-          value_from {
-            secret_key_ref {
-              name = var.discord_bot_token_secret_name
-              key  = "latest"
-            }
-          }
-        }
-
-        env {
-          name = "DISCORD_CHANNEL_ID"
-          value_from {
-            secret_key_ref {
-              name = var.discord_channel_id_secret_name
-              key  = "latest"
-            }
-          }
-        }
-
-        resources {
-          limits = {
-            cpu    = var.cpu
-            memory = var.memory
+      # Discord credentials from Secret Manager
+      env {
+        name = "DISCORD_BOT_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = "projects/${var.project_id}/secrets/${var.discord_bot_token_secret_name}"
+            version = "latest"
           }
         }
       }
 
-      container_concurrency = 1
-      timeout_seconds       = 60
-    }
+      env {
+        name = "DISCORD_CHANNEL_ID"
+        value_source {
+          secret_key_ref {
+            secret  = "projects/${var.project_id}/secrets/${var.discord_channel_id_secret_name}"
+            version = "latest"
+          }
+        }
+      }
 
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/minScale" = tostring(var.min_instances)
-        "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
-        "run.googleapis.com/execution-environment" = "gen1"
+      # OpenTelemetry configuration
+      env {
+        name  = "OTEL_EXPORTER_OTLP_ENDPOINT"
+        value = "http://localhost:4317"
+      }
+
+      resources {
+        limits = {
+          cpu    = var.cpu
+          memory = var.memory
+        }
       }
     }
+
+    # OpenTelemetry Collector sidecar container
+    containers {
+      name  = "otel-collector"
+      image = var.otel_collector_image
+
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+
+      resources {
+        limits = {
+          cpu    = "0.5"
+          memory = "256Mi"
+        }
+      }
+    }
+
+    scaling {
+      min_instance_count = var.min_instances
+      max_instance_count = var.max_instances
+    }
+
+    timeout = "60s"
+    # v2 API uses execution_environment instead of annotation
+    execution_environment = "EXECUTION_ENVIRONMENT_GEN2"
   }
 
   traffic {
-    percent         = 100
-    latest_revision = true
+    percent = 100
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
   }
 }
 
@@ -160,11 +181,11 @@ resource "random_id" "session_secret" {
 }
 
 # IAM policy for public access (if allow_unauthenticated is true)
-resource "google_cloud_run_service_iam_member" "public_access" {
+resource "google_cloud_run_v2_service_iam_member" "public_access" {
   count    = var.allow_unauthenticated ? 1 : 0
-  service  = google_cloud_run_service.main_service.name
-  location = google_cloud_run_service.main_service.location
+  name     = google_cloud_run_v2_service.main_service.name
+  location = google_cloud_run_v2_service.main_service.location
   project  = var.project_id
   role     = "roles/run.invoker"
-  member    = "allUsers"
+  member   = "allUsers"
 }
