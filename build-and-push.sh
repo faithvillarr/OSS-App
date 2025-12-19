@@ -5,14 +5,14 @@ set -e
 
 # Configuration
 PROJECT_ID="${PROJECT_ID:-fabled-rookery-476623-g5}"
-SERVICE_NAME="chat-service"
+SERVICE_NAME="main-service"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}:${IMAGE_TAG}"
 
 echo "Building Docker image: ${IMAGE_NAME}"
 
-# Build the Docker image
-docker build -t "${IMAGE_NAME}" .
+# Build the Docker image for linux/amd64 (required for Cloud Run)
+docker build --platform linux/amd64 -t "${IMAGE_NAME}" .
 
 echo "Image built successfully!"
 

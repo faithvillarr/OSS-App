@@ -1,11 +1,17 @@
-# Terraform Infrastructure for Chat Service
+# Terraform Infrastructure for main_service
 
-This directory contains Terraform configuration for deploying the Chat Service to Google Cloud Run.
+This directory contains Terraform configuration for deploying the main_service Discord polling service to Google Cloud Run with Secret Manager integration and Cloud Monitoring telemetry.
+
+**For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)**
 
 ## Prerequisites
 
 1. Google Cloud Project with billing enabled
-2. Cloud Run API enabled
+2. Required APIs enabled:
+   - Cloud Run API
+   - Secret Manager API
+   - Cloud Monitoring API
+   - Container Registry API (or Artifact Registry API)
 3. Terraform >= 1.0 installed
 4. Google Cloud SDK (`gcloud`) installed and authenticated
 5. Docker image built and pushed to Google Container Registry or Artifact Registry
@@ -19,12 +25,21 @@ This directory contains Terraform configuration for deploying the Chat Service t
    ```hcl
    project_id = "your-gcp-project-id"
    region     = "us-central1"
-   image      = "gcr.io/your-project-id/chat-service:latest"
+   service_name = "main-service"
+   image      = "gcr.io/your-project-id/main-service:latest"
    
+   # Google Tasks OAuth credentials
    tasks_client_id     = "your-client-id"
    tasks_client_secret = "your-client-secret"
    tasks_refresh_token = "your-refresh-token"
-   session_secret      = "your-session-secret"  # Optional, will be auto-generated if not provided
+   
+   # Secret Manager configuration
+   create_secrets = false  # Set to true if Terraform should create secrets
+   discord_bot_token_secret_name = "discord-bot-token"
+   discord_channel_id_secret_name = "discord-channel-id"
+   
+   # Service configuration
+   min_instances = 1  # Required for long-running polling service
    ```
 
 2. **Initialize Terraform:**
@@ -54,24 +69,20 @@ This directory contains Terraform configuration for deploying the Chat Service t
 
 ## Building and Pushing Docker Image
 
-Before deploying, you need to build and push the Docker image:
+Use the provided build script:
 
 ```bash
-# Build the image
-docker build -t gcr.io/YOUR_PROJECT_ID/chat-service:latest .
-
-# Push to Google Container Registry
-docker push gcr.io/YOUR_PROJECT_ID/chat-service:latest
+./build-and-push.sh
 ```
 
-Or use Artifact Registry:
+Or manually:
 
 ```bash
 # Build the image
-docker build -t us-central1-docker.pkg.dev/YOUR_PROJECT_ID/REPO_NAME/chat-service:latest .
+docker build -t gcr.io/YOUR_PROJECT_ID/main-service:latest .
 
-# Push to Artifact Registry
-docker push us-central1-docker.pkg.dev/YOUR_PROJECT_ID/REPO_NAME/chat-service:latest
+# Push to Google Container Registry
+docker push gcr.io/YOUR_PROJECT_ID/main-service:latest
 ```
 
 ## Variables
@@ -81,16 +92,24 @@ See `variables.tf` for all available variables. Key variables:
 - `project_id` (required): GCP Project ID
 - `image` (required): Container image URL
 - `region` (optional): GCP region (default: us-central1)
+- `service_name` (optional): Cloud Run service name (default: main-service)
 - `tasks_client_id` (required): Google Tasks OAuth Client ID
 - `tasks_client_secret` (required): Google Tasks OAuth Client Secret
 - `tasks_refresh_token` (required): Google Tasks OAuth Refresh Token
-- `allow_unauthenticated` (optional): Allow public access (default: true)
+- `discord_bot_token_secret_name` (optional): Secret Manager secret name for Discord bot token (default: discord-bot-token)
+- `discord_channel_id_secret_name` (optional): Secret Manager secret name for Discord channel ID (default: discord-channel-id)
+- `create_secrets` (optional): Whether Terraform should create secrets (default: false)
+- `min_instances` (optional): Minimum instances (default: 1 for polling service)
+- `max_instances` (optional): Maximum instances (default: 10)
 
 ## Outputs
 
 - `service_url`: HTTPS URL of the deployed service
 - `service_name`: Name of the Cloud Run service
 - `service_location`: Location of the service
+- `service_account_email`: Email of the service account
+- `discord_bot_token_secret_name`: Name of the Discord bot token secret
+- `discord_channel_id_secret_name`: Name of the Discord channel ID secret
 
 ## HTTPS
 
@@ -123,11 +142,31 @@ service_account_roles = [
 ]
 ```
 
+## Telemetry and Monitoring
+
+The service includes built-in Cloud Monitoring telemetry that tracks:
+
+- **Message Processing Metrics**: Success/failure rates, latency, error types
+- **Poll Cycle Metrics**: Cycle duration and frequency
+- **Error Tracking**: Categorized by error type
+
+Metrics are automatically sent to Cloud Monitoring. See [DEPLOYMENT.md](./DEPLOYMENT.md) for instructions on setting up monitoring dashboards.
+
+## Secret Manager
+
+Discord credentials are stored in Secret Manager and automatically injected as environment variables:
+
+- `DISCORD_BOT_TOKEN`: From Secret Manager secret
+- `DISCORD_CHANNEL_ID`: From Secret Manager secret
+
+The service account is automatically granted Secret Manager access. See [DEPLOYMENT.md](./DEPLOYMENT.md) for secret setup instructions.
+
 ## Notes
 
-- The service automatically scales based on traffic (min 0, max 10 instances by default)
-- Environment variables are set securely in the Cloud Run service
+- The service is a long-running polling service (not HTTP-based)
+- Minimum instances is set to 1 to ensure continuous polling
+- Environment variables are set securely via Secret Manager
 - Session secret is auto-generated if not provided
-- The service runs on port 8080 (Cloud Run default)
 - A dedicated service account is created for service identity (recommended security practice)
+- Telemetry is automatically enabled when running on Cloud Run
 

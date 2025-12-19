@@ -3,18 +3,21 @@
 
 project_id = "your-gcp-project-id"
 region     = "us-central1"
-image      = "gcr.io/your-project-id/chat-service:latest"
+image      = "gcr.io/your-project-id/main-service:latest"
 
 # Google Tasks OAuth credentials
 tasks_client_id     = "your-client-id.apps.googleusercontent.com"
 tasks_client_secret = "your-client-secret"
 tasks_refresh_token = "your-refresh-token"
 
+# OpenAI API key (required for AI client)
+openai_api_key = "your-openai-api-key-here"
+
 # Optional: Session secret (auto-generated if not provided)
 # session_secret = "your-secret-key"
 
 # Optional: Service configuration
-# service_name         = "chat-service"
+# service_name         = "main-service"
 # allow_unauthenticated = true
 # min_instances        = 0
 # max_instances        = 10

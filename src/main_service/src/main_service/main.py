@@ -1,8 +1,11 @@
 """Constantly running service that polls Discord for new messages and responds."""
 
+import http.server
 import logging
 import os
+import socketserver
 import sys
+import threading
 import time
 from typing import Final
 
@@ -13,6 +16,7 @@ import gtask_client_impl  # noqa: F401
 import openai_impl  # noqa: F401
 import tickets_client_impl  # noqa: F401
 from main_service import routing
+from main_service.telemetry import get_telemetry
 from tickets_client_impl import TicketsClient
 
 logging.basicConfig(
@@ -23,6 +27,46 @@ logger = logging.getLogger(__name__)
 
 # Maximum length for message content in logs
 MAX_LOG_CONTENT_LENGTH = 50
+
+
+class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
+    """Simple HTTP handler for Cloud Run health checks."""
+    
+    def do_GET(self):
+        """Handle GET requests with a simple 200 OK response."""
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"OK")
+    
+    def log_message(self, format, *args):
+        """Suppress HTTP server logs to reduce noise."""
+        # Only log errors, not every health check request
+        if self.path != "/" and not self.path.startswith("/health"):
+            logger.debug("HTTP request: %s %s", self.command, self.path)
+
+
+def _start_health_check_server(port: int) -> threading.Thread:
+    """Start a simple HTTP server for Cloud Run health checks.
+    
+    Args:
+        port: Port number to listen on.
+        
+    Returns:
+        Thread running the HTTP server.
+    """
+    def run_server():
+        try:
+            with socketserver.TCPServer(("", port), HealthCheckHandler) as httpd:
+                logger.info("Health check server started on port %d", port)
+                httpd.serve_forever()
+        except Exception as e:
+            logger.error("Health check server error: %s", e)
+            # Don't exit - let the polling service continue
+    
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+    return server_thread
 
 
 def _initialize_ticket_client() -> TicketsClient:
@@ -208,34 +252,50 @@ def _process_new_message(
 
     logger.info("New message from sender=%s: '%s'", msg.sender_id, msg.content)
 
-    try:
-        # Extract commands from user message using AI
-        commands = routing.extract_commands(msg.content)
-        
-        if not commands:
-            # No ticket commands found, generate a helpful response
-            response = routing.generate_response(msg.content, [])
-        else:
-            # Execute commands iteratively (one at a time with AI feedback)
-            results = routing.execute_commands_iteratively(
-                user_message=msg.content,
-                initial_commands=commands,
-                ticket_client=ticket_client,
-                max_iterations=5,
-            )
+    # Error type mapping for telemetry
+    error_type_map = {
+        ValueError: "validation_error",
+        AttributeError: "attribute_error",
+        KeyError: "key_error",
+        ConnectionError: "connection_error",
+        TimeoutError: "timeout_error",
+    }
+
+    telemetry = get_telemetry()
+    with telemetry.measure_message_processing(error_type_map=error_type_map):
+        try:
+            # Extract commands from user message using AI
+            commands = routing.extract_commands(msg.content)
             
-            # Generate natural language response from all accumulated results
-            response = routing.generate_response(msg.content, results)
-        
-        # Send response to user
-        success = client.send_message(channel_id=channel_id, content=response)
-        if not success:
-            logger.error("Failed to send response to message %s", msg_id)
-    except Exception as e:
-        logger.exception("Error processing message %s: %s", msg_id, e)
-        # Send error response to user
-        error_response = "I encountered an error while processing your request. Please try again."
-        client.send_message(channel_id=channel_id, content=error_response)
+            if not commands:
+                # No ticket commands found, generate a helpful response
+                response = routing.generate_response(msg.content, [])
+            else:
+                # Execute commands iteratively (one at a time with AI feedback)
+                results = routing.execute_commands_iteratively(
+                    user_message=msg.content,
+                    initial_commands=commands,
+                    ticket_client=ticket_client,
+                    max_iterations=5,
+                )
+                
+                # Generate natural language response from all accumulated results
+                response = routing.generate_response(msg.content, results)
+            
+            # Send response to user
+            send_success = client.send_message(channel_id=channel_id, content=response)
+            if not send_success:
+                logger.error("Failed to send response to message %s", msg_id)
+                # Raise exception to mark this as a failure in telemetry
+                raise RuntimeError("Failed to send message response")
+        except Exception as e:
+            logger.exception("Error processing message %s: %s", msg_id, e)
+            # Send error response to user
+            error_response = "I encountered an error while processing your request. Please try again."
+            try:
+                client.send_message(channel_id=channel_id, content=error_response)
+            except Exception:
+                logger.exception("Failed to send error response")
 
     # Mark message as seen immediately
     seen_message_ids.add(msg_id)
@@ -292,21 +352,23 @@ def _poll_cycle(
         ticket_client: The ticket client for executing ticket operations.
 
     """
-    # Fetch the most recent messages
-    messages = client.get_messages(channel_id=channel_id, limit=message_check_limit)
+    telemetry = get_telemetry()
+    with telemetry.measure_poll_cycle():
+        # Fetch the most recent messages
+        messages = client.get_messages(channel_id=channel_id, limit=message_check_limit)
 
-    # Check for new messages
-    new_messages = _filter_new_messages(messages, seen_message_ids, bot_user_id)
+        # Check for new messages
+        new_messages = _filter_new_messages(messages, seen_message_ids, bot_user_id)
 
-    if new_messages:
-        # Process new messages and re-fetch to update our view
-        messages = _process_new_messages(
-            client, new_messages, channel_id, seen_message_ids, message_check_limit, ticket_client
-        )
+        if new_messages:
+            # Process new messages and re-fetch to update our view
+            messages = _process_new_messages(
+                client, new_messages, channel_id, seen_message_ids, message_check_limit, ticket_client
+            )
 
-    # Update seen set with all current messages (in case we missed some)
-    for msg in messages:
-        seen_message_ids.add(msg.id)
+        # Update seen set with all current messages (in case we missed some)
+        for msg in messages:
+            seen_message_ids.add(msg.id)
 
 
 def _run_polling_loop(
@@ -360,6 +422,13 @@ def main() -> None:
     """Run the Discord polling service."""
     logger.info("Starting Discord message polling service...")
     
+    # Initialize telemetry
+    telemetry = get_telemetry()
+    if telemetry.enabled:
+        logger.info("✓ Telemetry enabled")
+    else:
+        logger.info("⚠ Telemetry disabled (will continue without metrics)")
+    
     # Validate required environment variables
     channel_id = os.getenv("DISCORD_CHANNEL_ID")
     if not channel_id:
@@ -391,6 +460,12 @@ def main() -> None:
     
     logger.info("Initializing seen messages set...")
     seen_message_ids = _initialize_seen_messages(client, channel_id)
+
+    # Start health check HTTP server for Cloud Run
+    # Cloud Run requires services to listen on a port for health checks
+    port = int(os.getenv("PORT", "8080"))
+    health_server_thread = _start_health_check_server(port)
+    logger.info("Health check server thread started (daemon)")
 
     # Small delay to ensure initialization is complete before starting to poll
     time.sleep(0.1)

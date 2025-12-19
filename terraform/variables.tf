@@ -12,7 +12,7 @@ variable "region" {
 variable "service_name" {
   description = "Name of the Cloud Run service"
   type        = string
-  default     = "chat-service"
+  default     = "main-service"
 }
 
 variable "image" {
@@ -27,9 +27,9 @@ variable "allow_unauthenticated" {
 }
 
 variable "min_instances" {
-  description = "Minimum number of instances"
+  description = "Minimum number of instances (set to 1 for long-running polling service)"
   type        = number
-  default     = 0
+  default     = 1
 }
 
 variable "max_instances" {
@@ -79,11 +79,44 @@ variable "service_account_roles" {
   description = "List of IAM roles to grant to the Cloud Run service account"
   type        = list(string)
   default = [
-    # Add roles here based on what Google Cloud APIs your service needs
-    # Examples:
-    # "roles/cloudtasks.enqueuer"  # For Cloud Tasks API
-    # "roles/pubsub.publisher"      # For Pub/Sub
-    # "roles/storage.objectViewer"  # For Cloud Storage
-    # "roles/secretmanager.secretAccessor"  # For Secret Manager
+    "roles/secretmanager.secretAccessor"  # For Secret Manager access
   ]
+}
+
+variable "discord_bot_token_secret_name" {
+  description = "Name of the Secret Manager secret containing DISCORD_BOT_TOKEN"
+  type        = string
+  default     = "discord-bot-token"
+}
+
+variable "discord_channel_id_secret_name" {
+  description = "Name of the Secret Manager secret containing DISCORD_CHANNEL_ID"
+  type        = string
+  default     = "discord-channel-id"
+}
+
+variable "create_secrets" {
+  description = "Whether to create Secret Manager secrets via Terraform (false if secrets already exist)"
+  type        = bool
+  default     = false
+}
+
+variable "discord_bot_token" {
+  description = "Discord bot token (only used if create_secrets is true)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "discord_channel_id" {
+  description = "Discord channel ID (only used if create_secrets is true)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "openai_api_key" {
+  description = "OpenAI API key for AI client"
+  type        = string
+  sensitive   = true
 }

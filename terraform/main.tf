@@ -1,3 +1,36 @@
+# Secret Manager secrets for Discord credentials
+resource "google_secret_manager_secret" "discord_bot_token" {
+  count     = var.create_secrets ? 1 : 0
+  secret_id = var.discord_bot_token_secret_name
+  project   = var.project_id
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "discord_bot_token" {
+  count       = var.create_secrets ? 1 : 0
+  secret      = google_secret_manager_secret.discord_bot_token[0].id
+  secret_data = var.discord_bot_token
+}
+
+resource "google_secret_manager_secret" "discord_channel_id" {
+  count     = var.create_secrets ? 1 : 0
+  secret_id = var.discord_channel_id_secret_name
+  project   = var.project_id
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "discord_channel_id" {
+  count       = var.create_secrets ? 1 : 0
+  secret      = google_secret_manager_secret.discord_channel_id[0].id
+  secret_data = var.discord_channel_id
+}
+
 # Service Account for Cloud Run Service Identity
 resource "google_service_account" "main_service_account" {
   account_id   = "${var.service_name}-sa"
@@ -13,6 +46,21 @@ resource "google_project_iam_member" "service_account_permissions" {
   project  = var.project_id
   role     = each.value
   member   = "serviceAccount:${google_service_account.main_service_account.email}"
+}
+
+# Grant Secret Manager access to service account for Discord secrets
+resource "google_secret_manager_secret_iam_member" "discord_bot_token_accessor" {
+  secret_id = var.discord_bot_token_secret_name
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.main_service_account.email}"
+  project   = var.project_id
+}
+
+resource "google_secret_manager_secret_iam_member" "discord_channel_id_accessor" {
+  secret_id = var.discord_channel_id_secret_name
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.main_service_account.email}"
+  project   = var.project_id
 }
 
 # Cloud Run Service
@@ -53,6 +101,32 @@ resource "google_cloud_run_service" "main_service" {
           value = var.session_secret != "" ? var.session_secret : random_id.session_secret.hex
         }
 
+        env {
+          name  = "OPENAI_API_KEY"
+          value = var.openai_api_key
+        }
+
+        # Discord credentials from Secret Manager
+        env {
+          name = "DISCORD_BOT_TOKEN"
+          value_from {
+            secret_key_ref {
+              name = var.discord_bot_token_secret_name
+              key  = "latest"
+            }
+          }
+        }
+
+        env {
+          name = "DISCORD_CHANNEL_ID"
+          value_from {
+            secret_key_ref {
+              name = var.discord_channel_id_secret_name
+              key  = "latest"
+            }
+          }
+        }
+
         resources {
           limits = {
             cpu    = var.cpu
@@ -61,15 +135,15 @@ resource "google_cloud_run_service" "main_service" {
         }
       }
 
-      container_concurrency = 80
-      timeout_seconds       = 300
+      container_concurrency = 1
+      timeout_seconds       = 60
     }
 
     metadata {
       annotations = {
         "autoscaling.knative.dev/minScale" = tostring(var.min_instances)
         "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
-        "run.googleapis.com/execution-environment" = "gen2"
+        "run.googleapis.com/execution-environment" = "gen1"
       }
     }
   }
