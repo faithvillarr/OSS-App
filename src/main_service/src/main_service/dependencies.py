@@ -40,7 +40,7 @@ def get_bot_token(user_id: str) -> str | None:
     bot_key = f"bot:{user_id}"
     token_bundle = store.load(bot_key)
     if token_bundle and token_bundle.access_token:
-        return token_bundle.access_token
+        return str(token_bundle.access_token)  # type: ignore[no-any-return]
     return None
 
 

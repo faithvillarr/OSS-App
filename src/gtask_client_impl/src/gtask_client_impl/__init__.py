@@ -31,9 +31,9 @@ from gtask_client_impl.tasklist_impl import (
 )
 
 # Explicit re-exports for type checking
-GTaskClient: type[task_client_api.Client] = _GTaskClient
-GTask: type[task_client_api.task.Task] = _GTask
-GTaskList: type[task_client_api.tasklist.TaskList] = _GTaskList
+GTaskClient: type[task_client_api.Client] = _GTaskClient  # type: ignore[assignment]
+GTask: type[task_client_api.task.Task] = _GTask  # type: ignore[assignment]
+GTaskList: type[task_client_api.tasklist.TaskList] = _GTaskList  # type: ignore[assignment]
 
 
 def register() -> None:

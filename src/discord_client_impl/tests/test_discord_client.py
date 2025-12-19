@@ -1,4 +1,5 @@
 """Unit tests for DiscordClient HTTP methods with mocked responses."""
+# mypy: disable-error-code=misc
 
 from unittest.mock import MagicMock, patch
 

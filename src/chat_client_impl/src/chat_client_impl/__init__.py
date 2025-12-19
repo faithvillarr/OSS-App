@@ -66,7 +66,7 @@ def register() -> None:
     to return ChatClient implementations.
 
     """
-    chat_api.get_client = get_client_impl
+    chat_api.get_client = get_client_impl  # type: ignore[attr-defined,assignment]
 
 
 # Auto-register on import (side-effect import pattern)

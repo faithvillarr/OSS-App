@@ -22,7 +22,7 @@ _last_processed_ts: dict[str, float] = {}
 
 # Global flag to control polling
 _polling_active = False
-_polling_task: asyncio.Task | None = None
+_polling_task: asyncio.Task[None] | None = None
 
 _tickets_integration = TicketsIntegration()
 

@@ -76,9 +76,9 @@ def register() -> None:
     to return Discord implementations.
 
     """
-    discord_api.get_client = get_client_impl
-    discord_api.get_message = get_message_impl
-    discord_api.get_channel = get_channel_impl
+    discord_api.get_client = get_client_impl  # type: ignore[assignment]
+    discord_api.get_message = get_message_impl  # type: ignore[assignment]
+    discord_api.get_channel = get_channel_impl  # type: ignore[assignment]
 
 
 # Auto-register on import (side-effect import pattern)

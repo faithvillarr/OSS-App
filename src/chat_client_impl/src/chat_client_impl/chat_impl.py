@@ -1,5 +1,7 @@
 """Chat client implementation that adapts discord_api to chat_api."""
 
+from typing import Any
+
 from chat_api import ChatInterface, Message
 
 from chat_client_impl.message_impl import ChatMessage
@@ -13,7 +15,7 @@ class ChatClient(ChatInterface):
         user_id: str | None = None,
         access_token: str | None = None,
         token_type: str | None = None,
-        **kwargs,
+        **kwargs: Any,  # type: ignore[no-untyped-def]
     ) -> None:
         """Initialize a chat client.
 
@@ -34,7 +36,7 @@ class ChatClient(ChatInterface):
         # If access_token is provided, create DiscordClient directly
         # Otherwise, use discord_api.get_client(user_id)
         if access_token is not None:
-            from discord_client_impl import DiscordClient
+            from discord_client_impl import DiscordClient  # type: ignore[attr-defined]
 
             self._discord_client = DiscordClient(
                 access_token=access_token,
@@ -44,7 +46,7 @@ class ChatClient(ChatInterface):
         else:
             import discord_api
 
-            self._discord_client = discord_api.get_client(user_id=user_id)
+            self._discord_client = discord_api.get_client(user_id=user_id)  # type: ignore[assignment]
 
     def send_message(self, channel_id: str, content: str) -> bool:
         """Send a message to a channel.

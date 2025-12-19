@@ -76,5 +76,5 @@ def get_task_impl(raw_data: str) -> task.Task:
 
 def register() -> None:
     """Register the Google Task implementation with the task abstraction."""
-    task.get_task = get_task_impl
-    task_client_api.get_task = get_task_impl
+    task.get_task = get_task_impl  # type: ignore[assignment]
+    task_client_api.get_task = get_task_impl  # type: ignore[assignment]

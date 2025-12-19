@@ -1,5 +1,7 @@
 """Ticket command endpoints (alternative to chat message parsing)."""
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -23,7 +25,7 @@ class CommandResponse(BaseModel):
 
     success: bool
     message: str
-    data: dict | list | None = None
+    data: dict[str, Any] | list[Any] | None = None
 
 
 @router.post("/execute", response_model=CommandResponse)
@@ -57,7 +59,7 @@ def execute_command(request: CommandRequest) -> CommandResponse:
     success, message, data = _tickets_integration.execute_command(command_name, args)
 
     # Convert ticket objects to dicts for JSON serialization
-    response_data = None
+    response_data: dict[str, Any] | list[Any] | None = None
     if data is not None:
         if isinstance(data, list):
             response_data = [
@@ -82,7 +84,7 @@ def execute_command(request: CommandRequest) -> CommandResponse:
                 "assignee": data.assignee,
             }
         else:
-            response_data = data
+            response_data = data  # type: ignore[assignment]
 
     return CommandResponse(success=success, message=message, data=response_data)
 

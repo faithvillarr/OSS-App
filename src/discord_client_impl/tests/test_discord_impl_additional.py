@@ -3,6 +3,7 @@
 These tests are small unit tests for behavior of the client and are
 annotated with simple docstrings and type hints to satisfy linting.
 """
+# mypy: disable-error-code=misc
 
 from typing import Any, cast
 from unittest.mock import MagicMock

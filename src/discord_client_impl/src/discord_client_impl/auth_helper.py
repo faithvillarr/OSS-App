@@ -199,7 +199,7 @@ async def delete_user_credentials(guild_id: str) -> bool:
     else:
         LOGGER.warning("No credentials found to delete for guild: %s", guild_id)
 
-    return deleted
+    return bool(deleted)  # type: ignore[no-any-return]
 
 
 async def check_user_authenticated(guild_id: str) -> bool:

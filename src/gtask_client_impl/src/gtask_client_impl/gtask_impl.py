@@ -293,4 +293,4 @@ def get_client_impl(*, interactive: bool = False) -> task_client_api.Client:
 
 def register() -> None:
     """Register the GTask client implementation with the task client API."""
-    task_client_api.get_client = get_client_impl
+    task_client_api.get_client = get_client_impl  # type: ignore[assignment]

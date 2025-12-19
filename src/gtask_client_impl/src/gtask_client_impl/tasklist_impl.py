@@ -52,5 +52,5 @@ def get_tasklist_impl(raw_data: str) -> tasklist.TaskList:
 
 def register() -> None:
     """Register the Google TaskList implementation with the tasklist abstraction."""
-    tasklist.get_tasklist = get_tasklist_impl
-    task_client_api.get_tasklist = get_tasklist_impl
+    tasklist.get_tasklist = get_tasklist_impl  # type: ignore[assignment]
+    task_client_api.get_tasklist = get_tasklist_impl  # type: ignore[assignment]

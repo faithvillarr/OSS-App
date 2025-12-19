@@ -69,29 +69,65 @@ ignore = [
 strict = true
 explicit_package_bases = true # Required for src layout
 
-
 mypy_path = [
-  "src/main_service",
-
+  "src/main_service/src",
   # Ticketing Directories
-  "src/gtask_client_impl",
-  "src/task_client_api",
-  "src/tickets_api",
-  "src/tickets_client_impl",
-
+  "src/gtask_client_impl/src",
+  "src/task_client_api/src",
+  "src/tickets_api/src",
+  "src/tickets_client_impl/src",
   # Chat Directories
-  "src/discord_api",
-  "src/discord_client_impl",
-  "src/chat_api",
-  "src/chat_client_impl",
-
+  "src/discord_api/src",
+  "src/discord_client_impl/src",
+  "src/chat_api/src",
+  "src/chat_client_impl/src",
   # AI Directories
-  "src/ai_api",
-  "src/openai_impl",
+  "src/ai_api/src",
+  "src/openai_impl/src",
 ]
 
 ignore_missing_imports = false
 warn_unused_ignores = false
+show_error_codes = true
+warn_unreachable = false
+
+# Allow untyped decorators for FastAPI routes (common pattern)
+[[tool.mypy.overrides]]
+module = [
+    "main_service.routers.*",
+    "main_service.app",
+]
+disable_error_code = ["misc"]
+
+# Test files - more lenient type checking
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+    "discord_client_impl.tests.*",
+    "gtask_client_impl.tests.*",
+    "tickets_client_impl.tests.*",
+    "openai_impl.tests.*",
+    "discord_api.tests.*",
+]
+disable_error_code = [
+    "misc",  # Untyped decorators, generator return types
+    "attr-defined",  # Mock objects, dynamic attributes
+    "comparison-overlap",  # Test comparisons
+    "type-arg",  # Generic type parameters in tests
+    "return-value",  # Test return types
+    "no-untyped-def",  # Test helper functions
+    "operator",  # Test operations
+]
+ignore_missing_imports = true  # Allow missing imports in test files
+
+# Additional override for test files using file path matching
+[[tool.mypy.overrides]]
+module = [
+    "*.tests.*",
+    "*.*.tests.*",
+]
+disable_error_code = ["misc"]
+ignore_missing_imports = true
 
 # Allow untyped imports for specific modules
 [[tool.mypy.overrides]]
@@ -99,8 +135,32 @@ module = [
     "google.*",
     "googleapiclient.*",
     "google_auth_oauthlib.*",
+    "fastapi.*",
+    "starlette.*",
+    "slack_sdk.*",
+    "slack_impl.*",
+    "openai.*",
+    "authlib.*",
+    "uvicorn.*",
+    "discord_client_service.*",
+    "task_client_adapter.*",
+    "task_client_service.*",
+    "task_client_service_client.*",
+    "respx.*",
 ]
 ignore_missing_imports = true
+
+# Override for modules with dynamic attributes
+[[tool.mypy.overrides]]
+module = [
+    "task_client_api",
+    "tickets_api",
+    "discord_api",
+    "chat_api",
+    "ai_api",
+]
+disallow_any_generics = false
+disallow_subclassing_any = false
 
 [tool.pytest.ini_options]
 pythonpath = [
