@@ -195,25 +195,106 @@ fi
 
 echo ""
 
-# Step 5: Build and push Docker image
-echo -e "${BLUE}Step 5: Building and pushing Docker image...${NC}"
+# Step 5: Build and push Docker images
+echo -e "${BLUE}Step 5: Building and pushing Docker images...${NC}"
 
-echo "Building Docker image: $IMAGE_NAME"
+# Build and push main service image
+echo "Building main service Docker image: $IMAGE_NAME"
 docker build --platform linux/amd64 -t "$IMAGE_NAME" . || {
     print_error "Docker build failed"
     exit 1
 }
-print_status "Docker image built successfully"
+print_status "Main service Docker image built successfully"
 
 # Configure Docker authentication
 gcloud auth configure-docker --quiet 2>/dev/null || true
 
-echo "Pushing image to GCR: $IMAGE_NAME"
+echo "Pushing main service image to GCR: $IMAGE_NAME"
 docker push "$IMAGE_NAME" || {
     print_error "Docker push failed"
     exit 1
 }
-print_status "Docker image pushed successfully"
+print_status "Main service Docker image pushed successfully"
+
+# Optional: Build and push OpenTelemetry Collector image with config
+# Note: The Terraform config uses the official collector image by default.
+# Building a custom image with config baked in is optional but recommended for production.
+COLLECTOR_IMAGE_NAME="gcr.io/${PROJECT_ID}/otel-collector:${IMAGE_TAG}"
+echo ""
+read -p "Build custom OpenTelemetry Collector image with config? (y/N): " BUILD_COLLECTOR
+if [[ "$BUILD_COLLECTOR" =~ ^[Yy]$ ]]; then
+    echo "Building OpenTelemetry Collector image: $COLLECTOR_IMAGE_NAME"
+    docker build --platform linux/amd64 -f Dockerfile.otel-collector -t "$COLLECTOR_IMAGE_NAME" . || {
+        print_error "Collector Docker build failed"
+        exit 1
+    }
+    print_status "Collector Docker image built successfully"
+    
+    echo "Pushing collector image to GCR: $COLLECTOR_IMAGE_NAME"
+    docker push "$COLLECTOR_IMAGE_NAME" || {
+        print_error "Collector Docker push failed"
+        exit 1
+    }
+    print_status "Collector Docker image pushed successfully"
+    
+    # Automatically update terraform.tfvars with the collector image
+    if [ -f "terraform/terraform.tfvars" ]; then
+        if grep -q "^otel_collector_image" terraform/terraform.tfvars; then
+            # Update existing otel_collector_image line
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i.bak "s|^otel_collector_image.*|otel_collector_image = \"$COLLECTOR_IMAGE_NAME\"|g" terraform/terraform.tfvars
+            else
+                sed -i "s|^otel_collector_image.*|otel_collector_image = \"$COLLECTOR_IMAGE_NAME\"|g" terraform/terraform.tfvars
+            fi
+            rm terraform/terraform.tfvars.bak 2>/dev/null || true
+        else
+            # Add otel_collector_image line
+            echo "" >> terraform/terraform.tfvars
+            echo "otel_collector_image = \"$COLLECTOR_IMAGE_NAME\"" >> terraform/terraform.tfvars
+        fi
+        print_status "Updated terraform.tfvars with collector image: $COLLECTOR_IMAGE_NAME"
+    else
+        print_warning "terraform.tfvars not found. Please manually add: otel_collector_image = \"$COLLECTOR_IMAGE_NAME\""
+    fi
+    echo ""
+else
+    print_warning "Using official OpenTelemetry Collector image (otel/opentelemetry-collector-contrib:latest)"
+    print_warning "WARNING: The official image does NOT include a config file and will fail to start!"
+    print_warning "You MUST build a custom collector image for the sidecar to work properly."
+    echo ""
+    read -p "Do you want to build the collector image now? (y/N): " BUILD_NOW
+    if [[ "$BUILD_NOW" =~ ^[Yy]$ ]]; then
+        echo "Building OpenTelemetry Collector image: $COLLECTOR_IMAGE_NAME"
+        docker build --platform linux/amd64 -f Dockerfile.otel-collector -t "$COLLECTOR_IMAGE_NAME" . || {
+            print_error "Collector Docker build failed"
+            exit 1
+        }
+        print_status "Collector Docker image built successfully"
+        
+        echo "Pushing collector image to GCR: $COLLECTOR_IMAGE_NAME"
+        docker push "$COLLECTOR_IMAGE_NAME" || {
+            print_error "Collector Docker push failed"
+            exit 1
+        }
+        print_status "Collector Docker image pushed successfully"
+        
+        # Update terraform.tfvars
+        if [ -f "terraform/terraform.tfvars" ]; then
+            if grep -q "^otel_collector_image" terraform/terraform.tfvars; then
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    sed -i.bak "s|^otel_collector_image.*|otel_collector_image = \"$COLLECTOR_IMAGE_NAME\"|g" terraform/terraform.tfvars
+                else
+                    sed -i "s|^otel_collector_image.*|otel_collector_image = \"$COLLECTOR_IMAGE_NAME\"|g" terraform/terraform.tfvars
+                fi
+                rm terraform/terraform.tfvars.bak 2>/dev/null || true
+            else
+                echo "" >> terraform/terraform.tfvars
+                echo "otel_collector_image = \"$COLLECTOR_IMAGE_NAME\"" >> terraform/terraform.tfvars
+            fi
+            print_status "Updated terraform.tfvars with collector image: $COLLECTOR_IMAGE_NAME"
+        fi
+    fi
+fi
 
 echo ""
 
@@ -281,12 +362,29 @@ echo ""
 print_status "Deployment completed successfully!"
 echo ""
 echo -e "${GREEN}Next steps:${NC}"
-echo "1. View logs: gcloud run services logs read $SERVICE_NAME --region=$REGION --project=$PROJECT_ID"
-echo "2. View metrics: https://console.cloud.google.com/monitoring/metrics-explorer?project=$PROJECT_ID"
-echo "3. Check service status: gcloud run services describe $SERVICE_NAME --region=$REGION --project=$PROJECT_ID"
+echo "1. View main service logs: gcloud run services logs read $SERVICE_NAME --region=$REGION --project=$PROJECT_ID"
+echo "2. View collector logs: gcloud run services logs read $SERVICE_NAME --region=$REGION --project=$PROJECT_ID --container=otel-collector"
+echo "3. View metrics: https://console.cloud.google.com/monitoring/metrics-explorer?project=$PROJECT_ID"
+echo "4. Check service status: gcloud run services describe $SERVICE_NAME --region=$REGION --project=$PROJECT_ID"
+echo ""
+echo -e "${BLUE}OpenTelemetry Collector:${NC}"
+echo "The service now includes an OpenTelemetry Collector sidecar container."
+echo "Metrics are exported via OTLP and appear in GCP Cloud Monitoring."
 echo ""
 echo -e "${BLUE}To view telemetry metrics:${NC}"
 echo "1. Go to: https://console.cloud.google.com/monitoring/metrics-explorer?project=$PROJECT_ID"
-echo "2. Search for: custom.googleapis.com/main_service/message_processing_total"
-echo "3. Or create a dashboard with the custom metrics"
+echo "2. Search for: custom.googleapis.com/opentelemetry/main_service/message_processing_total"
+echo "3. Or use the view-telemetry.sh script: ./view-telemetry.sh"
+echo "4. Available metrics:"
+echo "   - message_processing_duration (End-to-end latency from message processing start to response posting)"
+echo "   - message_processing_total{status=\"success\"} (Count of successful message processing calls)"
+echo "   - message_processing_total{status=\"failure\"} (Count of failed message processing calls)"
+echo ""
+echo "   Success rate = message_processing_total{status=\"success\"} / message_processing_total"
+echo "   Failure rate = message_processing_total{status=\"failure\"} / message_processing_total"
+echo "   Rates can be calculated in GCP Cloud Monitoring using MQL or the UI"
+echo ""
+echo -e "${YELLOW}Note:${NC} If this is an update to an existing deployment, Terraform will"
+echo "update the Cloud Run service with the new sidecar container configuration."
+echo "Cloud Run will perform a rolling update with minimal downtime."
 echo ""
