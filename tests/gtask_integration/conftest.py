@@ -11,15 +11,10 @@ from typing import Never
 from unittest.mock import MagicMock
 
 import pytest
-from starlette.testclient import TestClient
-from task_client_adapter.service_task import register as register_task
-from task_client_adapter.service_tasklist import register as register_tasklist
 
 import gtask_client_impl
 import task_client_api
 from task_client_api import Client, Task, TaskList
-from task_client_service import app as service_app
-from task_client_service import get_task_client
 
 
 @pytest.fixture(autouse=True)
@@ -93,17 +88,6 @@ def reset_tasklist_dependency_injection() -> Generator[None, None, None]:
 
 
 @dataclass
-class MockServiceContext:
-    """Context for running service with mock client."""
-
-    base_url: str
-    mock_tasklist_data: dict
-    mock_task_data: dict
-    httpx_client: TestClient
-    mock_client: Client
-
-
-@dataclass
 class MockClientContext:
     """Context for creating mock client side effects."""
 
@@ -161,26 +145,6 @@ class DummyTaskList:
         self.self_link = self_link
 
 
-def _register_adapter_implementations() -> None:
-    """Register adapter dependency injection implementations."""
-    # Import and register the adapter implementation
-    import task_client_adapter  # noqa: PLC0415
-
-    task_client_adapter.register()
-
-    # Also register the service task and tasklist implementations
-
-    register_task()
-
-    register_tasklist()
-
-
-@pytest.fixture
-def setup_adapter_dependency_injection() -> None:
-    """Set up adapter dependency injection for tests that need it."""
-    _register_adapter_implementations()
-
-
 def _create_mock_tasklist_data() -> dict[str, str]:
     """Create mock tasklist data dictionary."""
     return {
@@ -214,7 +178,9 @@ def _create_default_tasklist() -> MagicMock:
     default_tasklist.title = "Default TaskList"
     default_tasklist.etag = "etag-default"
     default_tasklist.updated = "2025-01-01T00:00:00Z"
-    default_tasklist.self_link = "https://tasks.googleapis.com/tasks/v1/lists/default_tl"
+    default_tasklist.self_link = (
+        "https://tasks.googleapis.com/tasks/v1/lists/default_tl"
+    )
     return default_tasklist
 
 
@@ -328,7 +294,9 @@ def _create_delete_task_side_effect(
     """Create side effect for delete_task method."""
 
     def delete_task_side_effect(tasklist_id: str, task_id: str) -> bool:
-        return task_id == mock_task_data["id"] and tasklist_id == mock_tasklist_data["id"]
+        return (
+            task_id == mock_task_data["id"] and tasklist_id == mock_tasklist_data["id"]
+        )
 
     return delete_task_side_effect
 
@@ -338,15 +306,27 @@ def _configure_mock_client_side_effects(
     context: MockClientContext,
 ) -> None:
     """Configure all side effects on the mock client."""
-    mock_client.list_tasklists.side_effect = _create_list_tasklists_side_effect(context.default_tasklist, context.mock_tasklist)
-    mock_client.insert_tasklist.side_effect = _create_insert_tasklist_side_effect(context.mock_tasklist)
-    mock_client.delete_tasklist.side_effect = _create_delete_tasklist_side_effect(context.mock_tasklist_data)
-    mock_client.list_tasks.side_effect = _create_list_tasks_side_effect(context.mock_tasklist_data, context.mock_task)
+    mock_client.list_tasklists.side_effect = _create_list_tasklists_side_effect(
+        context.default_tasklist, context.mock_tasklist
+    )
+    mock_client.insert_tasklist.side_effect = _create_insert_tasklist_side_effect(
+        context.mock_tasklist
+    )
+    mock_client.delete_tasklist.side_effect = _create_delete_tasklist_side_effect(
+        context.mock_tasklist_data
+    )
+    mock_client.list_tasks.side_effect = _create_list_tasks_side_effect(
+        context.mock_tasklist_data, context.mock_task
+    )
     mock_client.get_task.side_effect = _create_get_task_side_effect(
         context.mock_tasklist_data, context.mock_task_data, context.mock_task
     )
-    mock_client.insert_task.side_effect = _create_insert_task_side_effect(context.mock_tasklist_data, context.mock_task)
-    mock_client.delete_task.side_effect = _create_delete_task_side_effect(context.mock_tasklist_data, context.mock_task_data)
+    mock_client.insert_task.side_effect = _create_insert_task_side_effect(
+        context.mock_tasklist_data, context.mock_task
+    )
+    mock_client.delete_task.side_effect = _create_delete_task_side_effect(
+        context.mock_tasklist_data, context.mock_task_data
+    )
 
 
 def _verify_mock_client_methods(mock_client: MagicMock) -> None:
@@ -387,51 +367,3 @@ def mock_gtask_client() -> tuple[MagicMock, dict[str, str], dict[str, str]]:
     _verify_mock_client_methods(mock_gtask_client)
 
     return mock_gtask_client, mock_tasklist_data, mock_task_data
-
-
-@pytest.fixture
-def running_service_with_mock_client(
-    mock_gtask_client: tuple[MagicMock, dict[str, str], dict[str, str]],
-    monkeypatch: pytest.MonkeyPatch,
-) -> MockServiceContext:
-    """Start a FastAPI service with a mocked GTask client."""
-    mock_client, mock_tasklist_data, mock_task_data = mock_gtask_client
-
-    # CRITICAL: Patch the get_client function BEFORE any imports
-    # This ensures the real GTask client is NEVER used
-    def mock_get_client(*args, **kwargs) -> MagicMock:  # noqa: ARG001, ANN003, ANN002
-        return mock_client
-
-    # Patch the get_client function in task_client_api
-    monkeypatch.setattr(task_client_api, "get_client", mock_get_client, raising=True)
-
-    # Also patch the GTaskClient class itself to prevent instantiation
-    monkeypatch.setattr(
-        gtask_client_impl,
-        "GTaskClient",
-        lambda: mock_client,
-        raising=True,
-    )
-
-    # CRITICAL: Override the FastAPI app's state to use our mock client
-    # This bypasses the lifespan function
-    service_app.state.task_client = mock_client
-
-    # Also override the FastAPI dependency to use our mock client
-    service_app.dependency_overrides[get_task_client] = lambda: mock_client  # type: ignore[assignment]
-
-    # Start the service using TestClient (in-process test client, not a real HTTP server)
-    # TestClient simulates HTTP requests and exercises the full FastAPI application stack
-    # This is the standard approach for integration testing and validates layer connectivity
-    base_url = "http://testserver"
-    try:
-        with TestClient(service_app, base_url=base_url) as httpx_client:
-            yield MockServiceContext(
-                base_url=base_url,
-                mock_tasklist_data=mock_tasklist_data,
-                mock_task_data=mock_task_data,
-                httpx_client=httpx_client,
-                mock_client=mock_client,
-            )
-    finally:
-        service_app.dependency_overrides.clear()

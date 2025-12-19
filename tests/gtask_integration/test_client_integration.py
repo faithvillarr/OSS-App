@@ -47,10 +47,14 @@ def test_get_client_and_authenticate() -> None:
     except FileNotFoundError:
         pytest.skip("Skipping integration test: credentials.json not found.")
     except RuntimeError as e:
-        if "Failed to obtain credentials" in str(e) or "No valid credentials found" in str(e):
+        if "Failed to obtain credentials" in str(
+            e
+        ) or "No valid credentials found" in str(e):
             pytest.skip(f"Skipping integration test: {e}")
         else:
-            pytest.fail(f"Integration test failed during authentication or API call: {e}")
+            pytest.fail(
+                f"Integration test failed during authentication or API call: {e}"
+            )
     except (ValueError, ConnectionError) as e:
         pytest.fail(f"Integration test failed during authentication or API call: {e}")
 
@@ -69,7 +73,9 @@ def test_dependency_injection_works() -> None:
         assert hasattr(client, "insert_task")
         assert hasattr(client, "delete_task")
     except RuntimeError as e:
-        if "No valid credentials found" in str(e) or "Failed to obtain credentials" in str(e):
+        if "No valid credentials found" in str(
+            e
+        ) or "Failed to obtain credentials" in str(e):
             pass
         else:
             raise
@@ -164,14 +170,18 @@ def test_client_scope_permissions() -> None:
         pytest.skip("Skipping integration test: credentials.json not found.")
     except RuntimeError as e:
         # Skip if credentials are missing (expected in CI without credentials)
-        if "Failed to obtain credentials" in str(e) or "No valid credentials found" in str(e):
+        if "Failed to obtain credentials" in str(
+            e
+        ) or "No valid credentials found" in str(e):
             pytest.skip(f"Skipping integration test: {e}")
         else:
             pytest.fail(f"Integration test failed: {e}")
     except (ValueError, ConnectionError) as e:
         # If we get a 403 error, it's likely a scope issue
         if "403" in str(e) or "insufficient" in str(e).lower():
-            pytest.fail(f"OAuth scope issue - client may not have required permissions: {e}")
+            pytest.fail(
+                f"OAuth scope issue - client may not have required permissions: {e}"
+            )
         else:
             pytest.fail(f"Integration test failed: {e}")
 
@@ -195,8 +205,12 @@ def test_client_initialization_modes() -> None:
         assert client1 is not client2
 
     except RuntimeError as e:
-        if "No valid credentials found" in str(e) or "Failed to obtain credentials" in str(e):
-            logger.debug("Client initialization works correctly - authentication failed as expected without credentials")
+        if "No valid credentials found" in str(
+            e
+        ) or "Failed to obtain credentials" in str(e):
+            logger.debug(
+                "Client initialization works correctly - authentication failed as expected without credentials"
+            )
         else:
             pytest.fail(f"Unexpected error during client initialization: {e}")
     except FileNotFoundError:
