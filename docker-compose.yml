@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  main_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: discord-polling-service
+    env_file:
+      - .env
+    environment:
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_CHANNEL_ID=${DISCORD_CHANNEL_ID}
+      - POLLING_INTERVAL_SECONDS=${POLLING_INTERVAL_SECONDS:-0.5}
+      - MESSAGE_CHECK_LIMIT=${MESSAGE_CHECK_LIMIT:-5}
+    restart: unless-stopped
+    # No ports needed for polling service, but keeping for potential health checks
+    # ports:
+    #   - "8080:8080"
+    volumes:
+      # Optional: mount .env file if you prefer file-based config
+      # - ./.env:/app/.env:ro
+      - ./var:/app/var  # For any persistent data if needed
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

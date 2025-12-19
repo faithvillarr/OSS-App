@@ -8,11 +8,17 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /app
 
 # Copy workspace files
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
 COPY src/ ./src/
+# Note: uv.lock is optional - if it doesn't exist, uv sync will generate it
 
 # Install dependencies (--all-packages ensures workspace members are installed)
-RUN uv sync --frozen --no-dev --all-packages
+# Use --frozen only if uv.lock exists, otherwise sync without it
+RUN if [ -f uv.lock ]; then \
+        uv sync --frozen --no-dev --all-packages; \
+    else \
+        uv sync --no-dev --all-packages; \
+    fi
 
 # Runtime stage
 FROM python:3.12-slim
@@ -25,7 +31,7 @@ WORKDIR /app
 
 # Copy installed packages from builder
 COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app/pyproject.toml /app/uv.lock ./
+COPY --from=builder /app/pyproject.toml ./
 COPY --from=builder /app/src/ ./src/
 
 # Set environment variables
