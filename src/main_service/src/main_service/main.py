@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 
 # Maximum length for message content in logs
 MAX_LOG_CONTENT_LENGTH = 50
+E2E_PREFIX = "E2E:"
+FIRST_MESSAGE_CONTENT = "What a cool message!"
 
 
 class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
@@ -201,6 +203,27 @@ def _initialize_seen_messages(
 
     return seen_message_ids
 
+def _validate_new_message(
+    msg: chat_api.Message,
+    seen_message_ids: set[str],
+    bot_user_id: str | None,
+) -> bool:
+    """Validate a new message.
+    
+    Args:
+        msg: The message to check.
+        seen_message_ids: Set of message IDs that have already been seen.
+        bot_user_id: The bot's user ID to filter out bot messages.
+    
+    Returns:
+        True if the message is a valid new message, False otherwise.
+    """
+    return (
+        msg.id not in seen_message_ids
+        and ((bot_user_id is None or msg.sender_id != bot_user_id) or msg.content[:len(E2E_PREFIX)] == E2E_PREFIX)  
+        and msg.content != FIRST_MESSAGE_CONTENT
+    )
+
 
 def _filter_new_messages(
     messages: list[chat_api.Message],
@@ -218,13 +241,11 @@ def _filter_new_messages(
         List of new messages that should be processed.
 
     """
-    return [
-        msg
-        for msg in messages
-        if msg.id not in seen_message_ids
-        and (bot_user_id is None or msg.sender_id != bot_user_id)
-        and msg.content != "What a cool message!"  # Filter our own responses by content
-    ]
+    new_messages = []
+    for msg in messages:
+        if _validate_new_message(msg, seen_message_ids, bot_user_id):
+            new_messages.append(msg)
+    return new_messages
 
 
 def _process_new_message(
@@ -252,6 +273,10 @@ def _process_new_message(
 
     logger.info("New message from sender=%s: '%s'", msg.sender_id, msg.content)
 
+    content = msg.content
+    if content.startswith(E2E_PREFIX):
+        content = content[len(E2E_PREFIX):].strip()
+
     # Error type mapping for telemetry
     error_type_map = {
         ValueError: "validation_error",
@@ -265,22 +290,22 @@ def _process_new_message(
     with telemetry.measure_message_processing(error_type_map=error_type_map):
         try:
             # Extract commands from user message using AI
-            commands = routing.extract_commands(msg.content)
+            commands = routing.extract_commands(content)
             
             if not commands:
                 # No ticket commands found, generate a helpful response
-                response = routing.generate_response(msg.content, [])
+                response = routing.generate_response(content, [])
             else:
                 # Execute commands iteratively (one at a time with AI feedback)
                 results = routing.execute_commands_iteratively(
-                    user_message=msg.content,
+                    user_message=content,
                     initial_commands=commands,
                     ticket_client=ticket_client,
                     max_iterations=5,
                 )
                 
                 # Generate natural language response from all accumulated results
-                response = routing.generate_response(msg.content, results)
+                response = routing.generate_response(content, results)
             
             # Send response to user
             send_success = client.send_message(channel_id=channel_id, content=response)
