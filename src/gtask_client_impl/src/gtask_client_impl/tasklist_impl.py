@@ -7,7 +7,7 @@ import task_client_api
 from task_client_api import tasklist
 
 
-class GTaskList(tasklist.TaskList):
+class GTaskList(tasklist.TaskList):  # type: ignore[misc]
     """Concrete implementation of the TaskList abstraction for Google TaskLists."""
 
     def __init__(self, raw_data: str) -> None:

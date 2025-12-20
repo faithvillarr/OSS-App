@@ -7,7 +7,7 @@ import task_client_api
 from task_client_api import task
 
 
-class GTask(task.Task):
+class GTask(task.Task):  # type: ignore[misc]
     """Concrete implementation of the Task abstraction for Google Tasks."""
 
     def __init__(self, raw_data: str) -> None:

@@ -35,5 +35,15 @@ token.json
 .env
 credentials.json
 
+# SSL certificates (self-signed for local development)
+certs/
+
 .coverage*
 TESTING_STATUS.md
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars

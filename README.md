@@ -1,13 +1,18 @@
-# OSS-APP: Ticketing Integration with AI and Chatbot
+# OSS-APP: AI-Powered Ticket Management with Discord Integration
 
 [![CircleCI](https://circleci.com/gh/ivanearisty/oss-taapp.svg?style=shield)](https://circleci.com/gh/ivanearisty/oss-taapp)
 [![Coverage](https://img.shields.io/badge/coverage-85%2B%25-brightgreen)](https://circleci.com/gh/ivanearisty/oss-taapp)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://python.org)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-This repository is a professional-grade Python application that integrates ticketing systems with AI and chatbot capabilities. Currently, the project includes the core ticketing integration built on a component-based architecture using Google Tasks as the backend.
+This repository is a professional-grade Python application that provides an AI-powered ticket management system integrated with Discord. The system polls Discord channels for messages, uses AI to extract ticket management commands from natural language, and executes them using Google Tasks as the backend.
 
-**Current Status**: The ticketing integration is complete and functional. AI and chatbot features are planned for future development.
+**Current Status**: The system is fully functional with:
+- Discord message polling and response system
+- AI-powered natural language command extraction
+- Google Tasks-based ticket management
+- Cloud Run deployment with Terraform
+- OpenTelemetry telemetry and monitoring
 
 The project emphasizes a strict separation of concerns, dependency injection, and a comprehensive, automated toolchain to enforce code quality and best practices.
 
@@ -23,47 +28,102 @@ This project is built on the principle of "programming integrated over time." Th
 
 The project is a `uv` workspace containing the following primary packages:
 
+### Main Service
+-   **`main_service`**: The core Discord polling service that processes messages, extracts commands using AI, and manages tickets. See [src/main_service/README.md](src/main_service/README.md) for detailed documentation.
+
+### Chat Components
+-   **`chat_api`**: Defines the abstract `ChatInterface` contract for chat operations (send_message, get_messages, delete_message).
+-   **`chat_client_impl`**: Adapter that bridges `discord_api` to the minimal `chat_api` contract.
+-   **`discord_api`**: Discord-specific API contract with richer message metadata.
+-   **`discord_client_impl`**: Concrete Discord API implementation using Discord's HTTP API.
+
+### AI Components
+-   **`ai_api`**: Defines the abstract `AIClient` interface for AI operations.
+-   **`openai_impl`**: OpenAI implementation of the AI client interface.
+
 ### Ticketing Components
 -   **`tickets_api`**: Defines the abstract `TicketInterface` and `Ticket` base classes (ABC). This is the contract for ticketing operations (e.g., `create_ticket`, `search_tickets`, `update_ticket`).
 -   **`tickets_client_impl`**: Provides the `TicketsClient` class, a concrete implementation that uses Google Tasks as the backend for ticketing operations.
-
-### Task Management Components
 -   **`task_client_api`**: Defines the abstract `Client` base class (ABC) for task and tasklist operations.
 -   **`gtask_client_impl`**: Provides the `GTaskClient` class, a concrete implementation that uses the Google Tasks API.
--   **`task_client_service`**: FastAPI service implementation for task operations over HTTP.
--   **`task_client_adapter`**: Adapter pattern implementation for service-based task operations.
--   **`task_client_service_client`**: Auto-generated service client for interacting with the task service.
 
 ## Project Structure
 
 ```
 oss-app/
 ├── src/                          # Source packages (uv workspace members)
+│   ├── main_service/             # Discord polling service with AI routing
+│   ├── chat_api/                 # Abstract chat interface (ABC)
+│   ├── chat_client_impl/         # Discord adapter for chat_api
+│   ├── discord_api/              # Discord-specific API contract
+│   ├── discord_client_impl/      # Discord API implementation
+│   ├── ai_api/                   # Abstract AI client interface (ABC)
+│   ├── openai_impl/              # OpenAI implementation
 │   ├── tickets_api/              # Abstract ticketing interface (ABC)
 │   ├── tickets_client_impl/      # Google Tasks-based ticket implementation
 │   ├── task_client_api/          # Abstract task client base class (ABC)
-│   ├── gtask_client_impl/        # Google Tasks API implementation
-│   ├── task_client_service/      # FastAPI service for task operations
-│   ├── task_client_adapter/      # Adapter for service-based task operations
-│   └── task_client_service_client/ # Auto-generated service client
-├── tests/                        # Integration and E2E tests
-│   ├── gtask_integration/        # Google Tasks integration tests
-│   └── e2e/                      # End-to-end application tests
-├── docs/                         # Documentation source files
-├── tickets_wrapper.py            # Main application entry point (ticketing demo)
-├── pyproject.toml               # Project configuration (dependencies, tools)
+│   └── gtask_client_impl/        # Google Tasks API implementation
+├── terraform/                      # Infrastructure as Code
+│   ├── main.tf                  # Terraform configuration
+│   ├── variables.tf             # Variable definitions
+│   ├── outputs.tf               # Output definitions
+│   ├── terraform.tfvars.example # Example variables (copy to terraform.tfvars)
+│   └── README.md                # Terraform deployment documentation
+├── tests/                       # Integration and E2E tests
+│   ├── gtask_integration/       # Google Tasks integration tests
+│   └── e2e/                     # End-to-end application tests
+├── docs/                        # Documentation source files
+├── deploy.sh                    # Complete deployment script for Cloud Run
+├── docker-compose.yml           # Local development setup
+├── Dockerfile                   # Production Docker image for main_service
+├── Dockerfile.otel-collector    # OpenTelemetry Collector sidecar image
+├── otel-collector-config.yaml   # Production OTel collector config
+├── otel-collector-config.local.yaml # Local OTel collector config
+├── pyproject.toml               # Root workspace configuration
 ├── uv.lock                      # Locked dependency versions
 ├── mkdocs.yml                   # MkDocs configuration
-├── token.json                   # OAuth token (local only)
-└── README.md
+└── README.md                    # This file
 ```
+
+### Root-Level Files
+
+Files in the project root (outside of `src/` and `terraform/`):
+
+- **`deploy.sh`**: Complete deployment script that automates the entire Cloud Run deployment process. Handles Docker image building, Secret Manager setup, and Terraform deployment. See [Deployment](#deployment) section.
+
+- **`discord_main.py`**: Simple demo script for testing Discord chat API integration. Sends a test message and fetches recent messages from a Discord channel.
+
+- **`tickets_wrapper.py`**: Demo script demonstrating ticket operations (create, search, update, delete) using the TicketsClient.
+
+- **`example_usage.py`**: Example usage of ChatInterface (currently demonstrates Slack adapter pattern).
+
+- **`quickstart_openai.py`**: Quickstart script demonstrating OpenAI AI client integration.
+
+- **`og_tickets.py`**: Legacy demo script for task client operations (original implementation).
+
+- **`docker-compose.yml`**: Local development setup with `main_service` and `otel-collector` containers. Use this for local testing without deploying to Cloud Run.
+
+- **`Dockerfile`**: Production Docker image for the main_service. Multi-stage build optimized for Cloud Run.
+
+- **`Dockerfile.otel-collector`**: Docker image for OpenTelemetry Collector sidecar container used in Cloud Run deployment.
+
+- **`otel-collector-config.yaml`**: Production OpenTelemetry Collector configuration with Google Cloud Monitoring exporter.
+
+- **`otel-collector-config.local.yaml`**: Local development OpenTelemetry Collector configuration with debug exporter (no GCP credentials needed).
+
+- **`pyproject.toml`**: Root workspace configuration defining all workspace members, dependencies, and tool configurations (ruff, mypy, pytest).
+
+- **`.env.example`**: Example environment variables file. Copy to `.env` and fill in your values for local development.
 
 ## Project Setup
 
 ### 1. Prerequisites
 
 -   Python 3.11 or higher
--   `uv` – A fast, all-in-one Python package manager.
+-   `uv` – A fast, all-in-one Python package manager
+-   Docker and Docker Compose (for local development)
+-   Google Cloud SDK (`gcloud`) (for deployment)
+-   Terraform >= 1.0 (for deployment)
 
 ### 2. Initial Setup
 
@@ -113,18 +173,133 @@ oss-app/
     ```
     After you approve, a `token.json` file will be created. This file is also ignored by `.gitignore` and will be used for authentication in subsequent runs.
 
-## Development Workflow
+## Local Development
 
-All commands should be run from the project root with the virtual environment activated.
+### Running the Main Service Locally
 
-### Running the Application
+The main service can be run locally using Docker Compose:
 
-To run the main ticketing demonstration script:
+1. **Create a `.env` file** from the example:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Fill in your environment variables** in `.env`:
+   ```bash
+   DISCORD_BOT_TOKEN=your-discord-bot-token
+   DISCORD_CHANNEL_ID=your-discord-channel-id
+   OPENAI_API_KEY=your-openai-api-key
+   GTASK_CLIENT_ID=your-google-tasks-client-id
+   GTASK_CLIENT_SECRET=your-google-tasks-client-secret
+   GTASK_REFRESH_TOKEN=your-google-tasks-refresh-token
+   ```
+
+3. **Start the services**:
+   ```bash
+   docker compose up --build
+   ```
+
+   This starts:
+   - `main_service`: The Discord polling service
+   - `otel-collector`: OpenTelemetry Collector for metrics (local config uses debug exporter)
+
+4. **View logs**:
+   ```bash
+   docker compose logs -f main_service
+   ```
+
+5. **Stop the services**:
+   ```bash
+   docker compose down
+   ```
+
+### Running Demo Scripts
+
+**Discord Chat Demo:**
+```bash
+export DISCORD_BOT_TOKEN="your_token"
+export DISCORD_CHANNEL_ID="your_channel_id"
+uv run python discord_main.py
+```
+
+**Ticket Operations Demo:**
 ```bash
 uv run python tickets_wrapper.py
 ```
 
-This will demonstrate the ticketing integration by creating, searching, updating, and managing tickets using Google Tasks as the backend.
+**OpenAI Quickstart:**
+```bash
+export OPENAI_API_KEY="your_key"
+uv run python quickstart_openai.py
+```
+
+## Deployment
+
+The project uses Terraform for infrastructure deployment to Google Cloud Run. The deployment process is automated via the `deploy.sh` script.
+
+### Prerequisites for Deployment
+
+1. **Google Cloud Project** with billing enabled
+2. **Required APIs enabled**:
+   - Cloud Run API
+   - Secret Manager API
+   - Cloud Monitoring API
+   - Container Registry API (or Artifact Registry API)
+3. **Google Cloud SDK** installed and authenticated:
+   ```bash
+   gcloud auth login
+   gcloud auth application-default login
+   ```
+4. **Terraform** >= 1.0 installed
+5. **Docker** installed and running
+
+### Deployment Steps
+
+1. **Configure Terraform variables**:
+   ```bash
+   cd terraform
+   cp terraform.tfvars.example terraform.tfvars
+   ```
+
+2. **Edit `terraform/terraform.tfvars`** and fill in:
+   - `project_id`: Your GCP project ID
+   - `region`: GCP region (e.g., `us-central1`)
+   - `image`: Docker image URL (will be set by deploy script)
+   - `tasks_client_id`: Google Tasks OAuth Client ID
+   - `tasks_client_secret`: Google Tasks OAuth Client Secret
+   - `tasks_refresh_token`: Google Tasks OAuth Refresh Token
+   - `openai_api_key`: OpenAI API key
+
+3. **Run the deployment script**:
+   ```bash
+   ./deploy.sh
+   ```
+
+   The script will:
+   - Check prerequisites (gcloud, docker, terraform)
+   - Enable required GCP APIs
+   - Set up Secret Manager secrets (Discord bot token, channel ID)
+   - Build and push Docker images
+   - Deploy infrastructure with Terraform
+   - Display the service URL
+
+4. **Verify deployment**:
+   ```bash
+   # Get service URL
+   cd terraform
+   terraform output service_url
+   
+   # View logs
+   gcloud run services logs read main-service --region=us-central1
+   ```
+
+For detailed Terraform documentation, see [terraform/README.md](terraform/README.md).
+
+For detailed main_service documentation, see [src/main_service/README.md](src/main_service/README.md).
+
+## Development Workflow
+
+All commands should be run from the project root with the virtual environment activated.
 
 ### Running the Toolchain
 
@@ -150,9 +325,10 @@ This will demonstrate the ticketing integration by creating, searching, updating
 
     I'd recommend only running: `uv run pytest src/ tests/ -m "not local_credentials" -v` for simplicity.
 
-    The project uses a comprehensive testing strategy with different test categories.
+    The project uses a comprehensive testing strategy with different test categories:
     ```bash
     # Run all tests (includes unit, integration, and e2e tests)
+    # Note: Some tests may fail due to missing dependencies (task_client_adapter, respx)
     uv run pytest
 
     # Run only unit tests (fast, no external dependencies - from src/ directories)
@@ -223,11 +399,9 @@ The project includes a comprehensive CircleCI configuration (`.circleci/config.y
 
 See `docs/circleci-setup.md` for detailed CI/CD setup instructions.
 
-## Development Workflow
-
 ### Quick Start
 1. **Install dependencies**: `uv sync --all-packages --extra dev`
-2. **Run tests**: `uv run pytest tests/ -v` or `uv run pytest src/ tests/ -m "not local_credentials" -v`
+2. **Run tests**: `uv run pytest src/ tests/ -m "not local_credentials" -v`
 3. **Check code quality**: `uv run ruff check . && uv run ruff format --check .`
 4. **Fix formatting**: `uv run ruff format .`
 5. **View documentation**: `uv run mkdocs serve`
@@ -237,3 +411,4 @@ See `docs/circleci-setup.md` for detailed CI/CD setup instructions.
 - Use integration tests (`uv run pytest -m integration`) to verify component interactions
 - Run full test suite (`uv run pytest`) before pushing to ensure CI compatibility
 - The CircleCI pipeline provides automated validation on every push
+- Use `docker compose up` for local main_service development and testing

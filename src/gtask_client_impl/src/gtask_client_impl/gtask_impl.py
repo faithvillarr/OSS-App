@@ -21,7 +21,7 @@ from task_client_api import task, tasklist
 from gtask_client_impl.auth import OAuthManager
 
 
-class GTaskClient(task_client_api.Client):
+class GTaskClient(task_client_api.Client):  # type: ignore[misc]
     """Concrete implementation of the Client abstraction using Google Tasks API.
 
     This class provides a complete implementation of the mail_client_api.Client abstraction

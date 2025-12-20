@@ -5,8 +5,12 @@ description = "Ticketing integration application with AI and chatbot capabilitie
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "authlib>=1.6.6",
+    "fastapi>=0.125.0",
+    "google-api-python-client>=2.187.0",
     "google-auth-oauthlib>=1.2.2",
     "mkdocs>=1.6.1",
+    "openai>=2.14.0",
     "openapi-python-client>=0.27.1",
     "python-dotenv>=1.0.0",
     "types-requests>=2.32.4.20250913",
@@ -22,19 +26,31 @@ dev = [
     "pymdown-extensions>=10.16.1",
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
+    "pytest-mock>=3.10.0",
     "ruff>=0.12.7",
     "types-requests>=2.32.4.20250611",
+]
+test = [
+    "pytest-mock>=3.10.0",
+    "respx>=0.20.2",  # HTTP mocking for httpx (used by discord_client_impl tests)
 ]
 
 [tool.uv.workspace]
 members = [
-  "src/task_client_api",
+  "src/main_service",
+
   "src/gtask_client_impl",
-  "src/task_client_service",
-  "src/task_client_adapter",
-  "src/task_client_service_client",
+  "src/task_client_api",
   "src/tickets_api",
   "src/tickets_client_impl",
+
+  "src/discord_api",
+  "src/discord_client_impl",
+  "src/chat_api",
+  "src/chat_client_impl",
+
+  "src/ai_api",
+  "src/openai_impl",
 ]
 
 [tool.ruff]
@@ -57,21 +73,31 @@ ignore = [
     "PLC0415", "ERA001"
 ]
 "**/tests/conftest.py" = ["INP001"]  # Adding __init__.py causes pytest namespace conflicts with --import-mode=importlib
+"example_usage.py" = ["SLF001", "TRY300", "BLE001", "T201", "D401", "ANN204", "PLR2004", "S110"]
+"quickstart_openai.py" = ["T201", "D401"]
+"discord_main.py" = ["T201"]
 
 [tool.mypy]
 strict = true
 explicit_package_bases = true # Required for src layout
-
-mypy_path = [
-    "src/task_client_api/src",
-    "src/gtask_client_impl/src",
-    "src/task_client_service/src",
-    "src/task_client_service_client/src",
-    "src/task_client_adapter/src",
-    "src/tickets_api/src",
-    "src/tickets_client_impl/src",
+exclude = [
+  "src/.*/tests/.*",  # Exclude test directories within src to avoid duplicate module names
 ]
-
+# Packages are structured as src/<package>/src/<package>/, so we need to add src/<package>/src to the path
+# to find the actual package modules when imports use "from <package> import ..."
+mypy_path = [
+  "src/main_service/src",
+  "src/gtask_client_impl/src",
+  "src/task_client_api/src",
+  "src/tickets_api/src",
+  "src/tickets_client_impl/src",
+  "src/discord_api/src",
+  "src/discord_client_impl/src",
+  "src/chat_api/src",
+  "src/chat_client_impl/src",
+  "src/ai_api/src",
+  "src/openai_impl/src",
+]
 ignore_missing_imports = false
 warn_unused_ignores = false
 
@@ -81,13 +107,27 @@ module = [
     "google.*",
     "googleapiclient.*",
     "google_auth_oauthlib.*",
+    "authlib.*",
+    "discord_client_service.*",
+    "opentelemetry.*",
 ]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 pythonpath = [
     ".", 
-    "src"
+    "src",
+    "src/main_service/src",
+    "src/discord_api/src",
+    "src/discord_client_impl/src",
+    "src/tickets_api/src",
+    "src/tickets_client_impl/src",
+    "src/gtask_client_impl/src",
+    "src/task_client_api/src",
+    "src/ai_api/src",
+    "src/openai_impl/src",
+    "src/chat_api/src",
+    "src/chat_client_impl/src",
 ]
 testpaths = ["tests", "src/*/tests"]
 addopts = ["--cov", "--cov-report=term-missing", "--import-mode=importlib"]
@@ -115,5 +155,8 @@ exclude_lines = [
 dev = [
     "mypy>=1.18.2",
     "pytest-cov>=7.0.0",
+    "respx>=0.22.0",
     "ruff>=0.13.2",
+    "starlette>=0.50.0",
+    "uvicorn>=0.38.0",
 ]

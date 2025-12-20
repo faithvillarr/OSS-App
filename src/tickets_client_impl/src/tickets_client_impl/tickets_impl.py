@@ -20,7 +20,7 @@ else:
 gtask_client_impl.register()
 
 
-class _TaskBuilder(task.Task):
+class _TaskBuilder(task.Task):  # type: ignore[misc]
     """Helper class to build Task objects for insertion."""
 
     def __init__(
@@ -89,7 +89,7 @@ class _TaskBuilder(task.Task):
         return self._hidden
 
 
-class TicketsClient(TicketInterface):
+class TicketsClient(TicketInterface):  # type: ignore[misc]
     """Implementation of TicketInterface using Google Tasks."""
 
     IP_PREFIX = "(IP) "
@@ -323,4 +323,5 @@ class TicketsClient(TicketInterface):
 
         """
         tasklist_id = self._get_default_tasklist_id()
-        return self._gtask_client.delete_task(tasklist_id, ticket_id)
+        result = self._gtask_client.delete_task(tasklist_id, ticket_id)
+        return bool(result)

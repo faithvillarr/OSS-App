@@ -1,0 +1,454 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine.
+# See: https://circleci.com/docs/configuration-reference
+version: 2.1
+
+# Define jobs to be invoked later in a workflow.
+jobs:
+  # Job 1: Setup Environment and Install All Dependencies
+  build:
+    docker:
+      - image: cimg/python:3.11 # Use a consistent Python version
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: 'Install UV and Add to Path'
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> $BASH_ENV
+            source $BASH_ENV
+            uv --version # Verify installation
+      - run:
+          name: 'Sync All Dependencies via UV Sync'
+          command: |
+            # Sync all workspace packages with dev and test extras
+            # This installs all packages in editable mode and includes test dependencies
+            uv sync --all-packages --extra dev --extra test
+      - run:
+          name: 'Verify Installation'
+          command: |
+            uv tree # Check if workspace members and tools are listed
+            uv run python --version
+            uv run ruff --version
+            uv run pytest --version
+            uv run mypy --version
+            uv run coverage --version
+      - persist_to_workspace:
+          # Persist the entire project directory
+          root: ~/project
+          paths:
+            - .
+
+  # Job 2: Linting and Formatting Checks
+  lint:
+    docker:
+      - image: cimg/python:3.11
+    working_directory: ~/project
+    steps:
+      - attach_workspace:
+          at: ~/project # Attach the workspace persisted from 'build'
+      - run:
+          name: 'Install UV'
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> $BASH_ENV
+            source $BASH_ENV
+      - run:
+          name: 'Sync Dependencies'
+          command: |
+            uv sync --all-packages --extra dev --extra test
+      - run:
+          name: 'Run Ruff Linting'
+          command: |
+            uv run ruff check . --output-format=github
+      - run:
+          name: 'Run Ruff Formatting Check'
+          command: |
+            uv run ruff format --check .
+      - run:
+          name: 'Run MyPy Type Checking'
+          command: |
+            uv run mypy src tests
+
+  # Job 3: Unit Tests and Coverage (Fast, No External Dependencies)
+  unit_test:
+    docker:
+      - image: cimg/python:3.11
+    working_directory: ~/project
+    steps:
+      - attach_workspace:
+          at: ~/project # Attach the workspace persisted from 'build'
+      - run:
+          name: 'Install UV'
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> $BASH_ENV
+            source $BASH_ENV
+      - run:
+          name: 'Sync Dependencies'
+          command: |
+            uv sync --all-packages --extra dev --extra test
+      - run:
+          name: 'Create Test Results Directory'
+          command: |
+            mkdir -p test-results/unit # Create directory for JUnit XML
+      - run:
+          name: 'Execute Unit Test Suite (src/ tests only)'
+          command: |
+            # Run only unit tests from src/ directories (fast, isolated tests)
+            # Coverage requirement: 85% minimum
+            uv run pytest src/ \
+              --cov=src \
+              --cov-report=xml \
+              --cov-report=term-missing \
+              --cov-report=html \
+              --junitxml=test-results/unit/junit.xml \
+              --cov-fail-under=85 \
+              -v
+      - run:
+          name: 'Convert Coverage to XML (if needed)'
+          command: |
+            # Only convert coverage if data exists, otherwise skip silently
+            if [ -f .coverage ] || [ -f .coverage.* ]; then
+              uv run coverage xml || echo "Coverage XML already generated"
+            else
+              echo "No coverage data found, skipping coverage XML conversion"
+            fi
+          when: always
+      - store_test_results:
+          path: test-results/unit
+      - store_artifacts: # Store coverage reports
+          path: coverage.xml
+      - store_artifacts:
+          path: htmlcov
+      - store_artifacts:
+          path: test-results/unit
+
+  # Job 4: CircleCI Integration Tests (All Tests Except Local Credentials)
+  circleci_test:
+    docker:
+      - image: cimg/python:3.11
+    working_directory: ~/project
+    steps:
+      - attach_workspace:
+          at: ~/project # Attach the workspace persisted from 'build'
+      - run:
+          name: 'Install UV'
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> $BASH_ENV
+            source $BASH_ENV
+      - run:
+          name: 'Sync Dependencies'
+          command: |
+            uv sync --all-packages --extra dev --extra test
+      - run:
+          name: 'Create Test Results Directory'
+          command: |
+            mkdir -p test-results/circleci # Separate directory for results
+      - run:
+          name: 'Execute CircleCI-Compatible Tests'
+          command: |
+            # Run tests marked with 'circleci' marker
+            # Coverage tracking enabled but no minimum requirement (--cov-fail-under=0)
+            uv run pytest -m circleci \
+              --junitxml=test-results/circleci/junit.xml \
+              --tb=short \
+              --cov=src \
+              --cov-report=term-missing \
+              --cov-report=html \
+              --cov-report=xml \
+              --cov-fail-under=0 \
+              -v
+      - run:
+          name: 'Convert Coverage to XML (if needed)'
+          command: |
+            # Only convert coverage if data exists, otherwise skip silently
+            if [ -f .coverage ] || [ -f .coverage.* ]; then
+              uv run coverage xml || echo "Coverage XML already generated"
+            else
+              echo "No coverage data found, skipping coverage XML conversion"
+            fi
+          when: always
+      - store_test_results:
+          path: test-results/circleci
+      - store_artifacts:
+          path: coverage.xml
+      - store_artifacts:
+          path: htmlcov
+      - store_artifacts:
+          path: test-results/circleci
+
+  # Job 5: Integration Tests with Real Credentials (Google Tasks)
+  # Runs integration tests that require API credentials (Google Tasks)
+  # Tests will skip gracefully if credentials are not available
+  integration_test:
+    docker:
+      - image: cimg/python:3.11
+    working_directory: ~/project
+    steps:
+      - attach_workspace:
+          at: ~/project # Attach the workspace persisted from 'build'
+      - run:
+          name: 'Install UV'
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> $BASH_ENV
+            source $BASH_ENV
+      - run:
+          name: 'Sync Dependencies'
+          command: |
+            uv sync --all-packages --extra dev --extra test
+      - run:
+          name: 'Verify Environment Variables'
+          command: |
+            echo "Checking for required environment variables..."
+            gtask_creds_present=true
+
+            if [ -z "$TASKS_CLIENT_ID" ] || [ -z "$TASKS_CLIENT_SECRET" ] || [ -z "$TASKS_REFRESH_TOKEN" ]; then
+              echo "WARNING: Missing Google Tasks environment variables. Integration tests may be skipped."
+              echo "Required: TASKS_CLIENT_ID, TASKS_CLIENT_SECRET, TASKS_REFRESH_TOKEN"
+              gtask_creds_present=false
+            else
+              echo "Google Tasks credentials present."
+            fi
+
+            if [ "$gtask_creds_present" = false ]; then
+              echo "WARNING: No credentials available. Some integration tests will be skipped."
+              echo "Tests that use mocks will still run successfully."
+            fi
+      - run:
+          name: 'Create Test Results Directory'
+          command: |
+            mkdir -p test-results/integration # Separate directory for results
+      - run:
+          name: 'Execute Integration Test Suite'
+          command: |
+            # Run integration tests
+            # Coverage tracking enabled but no minimum requirement (--cov-fail-under=0)
+            uv run pytest -m integration \
+              --junitxml=test-results/integration/junit.xml \
+              --tb=short \
+              --cov=src \
+              --cov-report=term-missing \
+              --cov-report=html \
+              --cov-report=xml \
+              --cov-fail-under=0 \
+              -v
+      - run:
+          name: 'Convert Coverage to XML (if needed)'
+          command: |
+            # Only convert coverage if data exists, otherwise skip silently
+            if [ -f .coverage ] || [ -f .coverage.* ]; then
+              uv run coverage xml || echo "Coverage XML already generated"
+            else
+              echo "No coverage data found, skipping coverage XML conversion"
+            fi
+          when: always
+      - store_test_results:
+          path: test-results/integration
+      - store_artifacts:
+          path: coverage.xml
+      - store_artifacts:
+          path: htmlcov
+      - store_artifacts:
+          path: test-results/integration
+
+  # Job 6: E2E Tests with Real Credentials
+  e2e_test:
+    docker:
+      - image: cimg/python:3.11
+    working_directory: ~/project
+    steps:
+      - attach_workspace:
+          at: ~/project # Attach the workspace persisted from 'build'
+      - run:
+          name: 'Install UV'
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> $BASH_ENV
+            source $BASH_ENV
+      - run:
+          name: 'Sync Dependencies'
+          command: |
+            uv sync --all-packages --extra dev --extra test
+      - run:
+          name: 'Verify Environment Variables'
+          command: |
+            echo "Checking for required environment variables..."
+            if [ -z "$TASKS_CLIENT_ID" ] || [ -z "$TASKS_CLIENT_SECRET" ] || [ -z "$TASKS_REFRESH_TOKEN" ]; then
+              echo "WARNING: Missing Google Tasks environment variables. E2E tests may be skipped."
+              echo "Required: TASKS_CLIENT_ID, TASKS_CLIENT_SECRET, TASKS_REFRESH_TOKEN"
+            else
+              echo "All required environment variables are present."
+            fi
+      - run:
+          name: 'Create Test Results Directory'
+          command: |
+            mkdir -p test-results/e2e # Separate directory for e2e results
+      - run:
+          name: 'Execute E2E Test Suite'
+          command: |
+            # Run e2e tests
+            # Coverage tracking enabled but no minimum requirement (--cov-fail-under=0)
+            uv run pytest -m e2e \
+              --junitxml=test-results/e2e/junit.xml \
+              --tb=short \
+              --cov=src \
+              --cov-report=term-missing \
+              --cov-report=html \
+              --cov-report=xml \
+              --cov-fail-under=0 \
+              -v
+      - run:
+          name: 'Convert Coverage to XML (if needed)'
+          command: |
+            # Only convert coverage if data exists, otherwise skip silently
+            if [ -f .coverage ] || [ -f .coverage.* ]; then
+              uv run coverage xml || echo "Coverage XML already generated"
+            else
+              echo "No coverage data found, skipping coverage XML conversion"
+            fi
+          when: always
+      - store_test_results:
+          path: test-results/e2e
+      - store_artifacts:
+          path: coverage.xml
+      - store_artifacts:
+          path: htmlcov
+      - store_artifacts:
+          path: test-results/e2e
+
+  # Job 7: Report Summary
+  report_summary:
+    docker:
+      - image: cimg/python:3.11
+    working_directory: ~/project
+    steps:
+      - attach_workspace:
+          at: ~/project # Attach the workspace
+      - run:
+          name: 'Install UV'
+          command: |
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> $BASH_ENV
+            source $BASH_ENV
+      - run:
+          name: 'Summarize Unit Test Results'
+          command: |
+            echo "--- Unit Test Summary ---"
+            if [ -f test-results/unit/junit.xml ]; then
+              echo "Unit test results file found."
+              # Extract test count if possible
+              if command -v xmllint > /dev/null; then
+                tests=$(xmllint --xpath "string(//testsuite/@tests)" test-results/unit/junit.xml 2>/dev/null || echo "N/A")
+                failures=$(xmllint --xpath "string(//testsuite/@failures)" test-results/unit/junit.xml 2>/dev/null || echo "N/A")
+                echo "Tests: $tests, Failures: $failures"
+              fi
+            else
+              echo "Unit test results file (test-results/unit/junit.xml) not found."
+            fi
+      - run:
+          name: 'Summarize CircleCI Test Results'
+          command: |
+            echo "--- CircleCI Test Summary ---"
+            if [ -f test-results/circleci/junit.xml ]; then
+              echo "CircleCI test results file found."
+              if command -v xmllint > /dev/null; then
+                tests=$(xmllint --xpath "string(//testsuite/@tests)" test-results/circleci/junit.xml 2>/dev/null || echo "N/A")
+                failures=$(xmllint --xpath "string(//testsuite/@failures)" test-results/circleci/junit.xml 2>/dev/null || echo "N/A")
+                echo "Tests: $tests, Failures: $failures"
+              fi
+            else
+              echo "CircleCI test results file not found."
+            fi
+      - run:
+          name: 'Summarize Integration Test Results'
+          command: |
+            echo "--- Integration Test Summary ---"
+            if [ -f test-results/integration/junit.xml ]; then
+              echo "Integration test results file found."
+              if command -v xmllint > /dev/null; then
+                tests=$(xmllint --xpath "string(//testsuite/@tests)" test-results/integration/junit.xml 2>/dev/null || echo "N/A")
+                failures=$(xmllint --xpath "string(//testsuite/@failures)" test-results/integration/junit.xml 2>/dev/null || echo "N/A")
+                echo "Tests: $tests, Failures: $failures"
+              fi
+            else
+              echo "Integration test results file not found."
+            fi
+      - run:
+          name: 'Summarize E2E Test Results'
+          command: |
+            echo "--- E2E Test Summary ---"
+            if [ -f test-results/e2e/junit.xml ]; then
+              echo "E2E test results file found."
+              # Extract test count if possible
+              if command -v xmllint > /dev/null; then
+                tests=$(xmllint --xpath "string(//testsuite/@tests)" test-results/e2e/junit.xml 2>/dev/null || echo "N/A")
+                failures=$(xmllint --xpath "string(//testsuite/@failures)" test-results/e2e/junit.xml 2>/dev/null || echo "N/A")
+                echo "Tests: $tests, Failures: $failures"
+              fi
+            else
+              echo "E2E test results file not found."
+            fi
+      - run:
+          name: 'Display Coverage Info'
+          command: |
+            echo "--- Coverage Summary ---"
+            if [ -f coverage.xml ]; then
+               echo "Coverage XML found. Check artifacts for details."
+               # Extract overall line rate if xmllint is available
+               if command -v xmllint > /dev/null; then
+                 coverage_rate=$(xmllint --xpath "string(//coverage/@line-rate)" coverage.xml 2>/dev/null || echo "N/A")
+                 echo "Line Coverage Rate: $coverage_rate"
+               fi
+            else
+               echo "Coverage XML not found."
+            fi
+      - run:
+          name: 'Generate Test Summary File'
+          command: |
+            echo "=== Test Summary ===" > test-summary.txt
+            echo "Build completed at: $(date)" >> test-summary.txt
+            echo "Branch: $CIRCLE_BRANCH" >> test-summary.txt
+            echo "Commit: $CIRCLE_SHA1" >> test-summary.txt
+            echo "" >> test-summary.txt
+            echo "All tests completed!" >> test-summary.txt
+      - store_artifacts:
+          path: test-summary.txt
+
+# Orchestrate jobs using workflows
+workflows:
+  # Enhanced workflow: Full tests with real credentials
+  full_integration:
+    jobs:
+      - build
+
+      - lint:
+          requires:
+            - build
+
+      - unit_test:
+          requires:
+            - build
+
+      - circleci_test:
+          requires:
+            - unit_test
+
+      - integration_test:
+          requires:
+            - circleci_test
+          context: gtask-client # Context containing Google Tasks API credentials
+
+      - e2e_test:
+          requires:
+            - integration_test
+          context: gtask-client
+
+      - report_summary:
+          requires:
+            - unit_test
+            - circleci_test
+            - integration_test
+            - e2e_test

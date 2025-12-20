@@ -72,7 +72,9 @@ def test_main_script_runs_and_fetches_tasks() -> None:
 
     except subprocess.TimeoutExpired as e:
         # Check if timeout was due to interactive OAuth flow waiting for input
-        combined_output = (e.stdout or "") + (e.stderr or "")
+        stdout_str = e.stdout.decode() if isinstance(e.stdout, bytes) else (e.stdout or "")
+        stderr_str = e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or "")
+        combined_output = stdout_str + stderr_str
         if "interactive OAuth flow" in combined_output or "complete authentication in your browser" in combined_output:
             pytest.skip("Test timed out - interactive OAuth flow cannot complete in CI environment")
         pytest.fail("E2E test timed out - og_tickets.py took too long to execute")
@@ -292,7 +294,7 @@ def test_main_script_handles_no_credentials_gracefully(tmp_path: Path) -> None:
         _call_client()
 
     message = str(excinfo.value)
-    assert message == gtask_client_impl.GTaskClient.FAILURE_TO_CRED
+    assert message == gtask_client_impl.GTaskClient.FAILURE_TO_CRED  # type: ignore[attr-defined]
 
 
 @pytest.mark.circleci

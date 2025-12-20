@@ -3,9 +3,8 @@
 This module contains unit tests for the OAuthManager authentication flow,
 mocking all external dependencies.
 
-The implementation supports two main authentication modes:
-1. Local use: .env file with TASKS_CLIENT_ID, TASKS_CLIENT_SECRET, TASKS_REFRESH_TOKEN
-2. Deployed use: FastAPI service with session credentials
+The implementation supports authentication via environment variables:
+- .env file with TASKS_CLIENT_ID, TASKS_CLIENT_SECRET, TASKS_REFRESH_TOKEN
 
 Interactive OAuth flow should NEVER run automatically - only when explicitly requested.
 """
@@ -17,7 +16,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import FastAPI, Request
-from fastapi.testclient import TestClient
 from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 from requests.exceptions import RequestException
@@ -1168,133 +1166,6 @@ class TestEnsureServiceInitialized:
 
         # ASSERT
         assert result is existing_service
-
-
-class TestOAuthManagerWithFastAPIService:
-    """Test cases for OAuthManager integration with FastAPI service using TestClient."""
-
-    def test_get_session_credentials_via_test_client(self) -> None:
-        """Test getting session credentials via FastAPI TestClient."""
-        # ARRANGE
-        from task_client_service import app
-
-        manager = OAuthManager()
-        creds_data = {
-            "token": "test_token",
-            "refresh_token": "test_refresh_token",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "client_id": "test_client_id",
-            "client_secret": "test_client_secret",
-            "scopes": OAuthManager.SCOPES,
-        }
-
-        # Set credentials in app state
-        app.state.current_session_creds = creds_data
-
-        with (
-            TestClient(app),
-            patch("gtask_client_impl.auth.importlib.util.find_spec") as mock_find_spec,
-            patch("gtask_client_impl.auth.importlib.import_module") as mock_import_module,
-            patch.object(manager, "_create_credentials_from_dict") as mock_create_creds,
-        ):
-            # Mock the dependencies module to return the request from TestClient
-            mock_deps_module = Mock()
-            mock_deps_module.current_request = ContextVar("current_request", default=None)
-
-            # Create a mock request that mimics TestClient's request
-            mock_request = Mock(spec=Request)
-            mock_request.app = app
-
-            # Set the request in the context
-            mock_deps_module.current_request.set(mock_request)
-
-            mock_find_spec.return_value = Mock()
-            mock_import_module.return_value = mock_deps_module
-
-            mock_creds = Mock(spec=Credentials)
-            mock_creds.valid = True
-            mock_create_creds.return_value = mock_creds
-
-            # ACT
-            result = manager._get_session_credentials()
-
-            # ASSERT
-            assert result is mock_creds
-
-    def test_check_service_availability_via_test_client(self) -> None:
-        """Test service availability check using FastAPI TestClient."""
-        # ARRANGE
-        from task_client_service import app
-
-        manager = OAuthManager()
-
-        with (
-            TestClient(app) as test_client,
-            patch("gtask_client_impl.auth.requests") as mock_requests,
-        ):
-            # Update SERVICE_BASE_URL to match TestClient's base URL
-            original_base_url = manager.SERVICE_BASE_URL
-            # TestClient base_url is like "http://testserver"
-            manager.SERVICE_BASE_URL = str(test_client.base_url)
-
-            try:
-                # Mock the requests.get call to return a successful response
-                # (TestClient doesn't actually start a server, so we need to mock requests)
-                mock_response = Mock()
-                mock_response.status_code = (
-                    HTTPStatus.UNAUTHORIZED
-                )  # Even 401 means service is available
-                mock_requests.get.return_value = mock_response
-
-                # ACT
-                result = manager._check_service_availability()
-
-                # ASSERT
-                assert result is True
-            finally:
-                # Restore original base URL
-                manager.SERVICE_BASE_URL = original_base_url
-
-    def test_initiate_api_login_flow_via_test_client(self) -> None:
-        """Test API login flow using FastAPI TestClient."""
-        # ARRANGE
-        from task_client_service import app
-
-        manager = OAuthManager()
-
-        with (
-            TestClient(app) as test_client,
-            patch("gtask_client_impl.auth.webbrowser") as mock_webbrowser,
-            patch("gtask_client_impl.auth.time") as mock_time,
-            patch("gtask_client_impl.auth.requests") as mock_requests,
-            patch.object(manager, "_get_session_credentials") as mock_get_session,
-        ):
-            # Update SERVICE_BASE_URL to match TestClient's base URL
-            original_base_url = manager.SERVICE_BASE_URL
-            manager.SERVICE_BASE_URL = str(test_client.base_url)
-
-            try:
-                # Mock the initial service availability check (returns 401 - no credentials)
-                mock_response = Mock()
-                mock_response.status_code = HTTPStatus.UNAUTHORIZED
-                mock_requests.get.return_value = mock_response
-
-                # Set credentials in app state after a delay
-                mock_creds = Mock(spec=Credentials)
-                mock_creds.valid = True
-                mock_get_session.side_effect = [None, None, mock_creds]
-                mock_time.time.side_effect = [0, 1, 2, 3]
-                mock_time.sleep = Mock()
-
-                # ACT
-                result = manager._initiate_api_login_flow()
-
-                # ASSERT
-                assert result is mock_creds
-                mock_webbrowser.open.assert_called_once()
-            finally:
-                # Restore original base URL
-                manager.SERVICE_BASE_URL = original_base_url
 
 
 class TestOAuthManagerConstants:

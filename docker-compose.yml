@@ -1,0 +1,58 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    # Use local config for local development (debug only)
+    # For Cloud Run deployment, use otel-collector-config.yaml which includes googlecloud exporter
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      # Use local config that only has debug exporter (no GCP credentials needed)
+      - ./otel-collector-config.local.yaml:/etc/otelcol-contrib/config.yaml:ro
+      # Optional: Mount gcloud Application Default Credentials if you want to use googlecloud exporter locally
+      # Uncomment the line below and use otel-collector-config.yaml instead of .local.yaml if you have GCP credentials
+      # - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
+      # Alternative: Mount service account key file if GOOGLE_APPLICATION_CREDENTIALS is set
+      # - ${GOOGLE_APPLICATION_CREDENTIALS}:/etc/gcp/credentials.json:ro
+    environment:
+      # GCP_PROJECT_ID is optional for local dev (only needed if using googlecloud exporter)
+      - GCP_PROJECT_ID=${GOOGLE_CLOUD_PROJECT:-${GCP_PROJECT:-}}
+      # If using service account key file, uncomment:
+      # - GOOGLE_APPLICATION_CREDENTIALS=/etc/gcp/credentials.json
+    ports:
+      - "4317:4317"  # OTLP gRPC receiver
+      - "4318:4318"  # OTLP HTTP receiver
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  main_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: discord-polling-service
+    env_file:
+      - .env
+    environment:
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_CHANNEL_ID=${DISCORD_CHANNEL_ID}
+      - POLLING_INTERVAL_SECONDS=${POLLING_INTERVAL_SECONDS:-0.5}
+      - MESSAGE_CHECK_LIMIT=${MESSAGE_CHECK_LIMIT:-5}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    depends_on:
+      - otel-collector
+    restart: unless-stopped
+    # No ports needed for polling service, but keeping for potential health checks
+    # ports:
+    #   - "8080:8080"
+    volumes:
+      # Optional: mount .env file if you prefer file-based config
+      # - ./.env:/app/.env:ro
+      - ./var:/app/var  # For any persistent data if needed
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

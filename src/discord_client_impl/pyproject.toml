@@ -1,0 +1,78 @@
+[project]
+name = "discord-client-impl"
+version = "0.1.0"
+description = "Discord implementation of discord_api with OAuth2 authentication"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27.0",
+    "authlib>=1.3.0",
+    "discord-api",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-mock>=3.10.0",
+    "respx>=0.20.2",  # HTTP mocking for httpx
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "src"]
+testpaths = ["tests", "src"]
+addopts = ["--cov", "--cov-report=term-missing"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+fail_under = 85 # Justification: A high threshold ensures most code is tested.
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/discord_client_impl"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/discord_client_impl/py.typed" = "discord_client_impl/py.typed"
+
+[tool.ruff]
+line-length = 100  # Default formatting width
+target-version = "py311"  # Adjust based on actual Python version
+extend = "../../pyproject.toml"
+
+[tool.ruff.lint]
+ignore = []
+per-file-ignores = { "**/tests/*.py" = [
+    "ARG001",  # Unused function argument (test fixtures)
+    "PIE810",  # Multiple startswith calls (test readability)
+    "PLC0415",  # Import not at top (intentional for registration tests)
+    "S105", "S106",  # Hardcoded password (false positive for test tokens)
+    "INP001",  # Tests shouldn't have __init__.py (pytest best practice)
+    "SLF001",  # Tests are allowed to access private members for testing
+], "**/__init__.py" = [
+    "ARG001",  # Unused args in factory functions (interface compatibility)
+    "TD002", "TD003", "FIX002",  # TODO comments (acceptable for planned features)
+    "D104",  # Missing docstring in __init__ (some are intentionally minimal)
+], "**/*_impl.py" = [
+    "S105",  # Hardcoded password (false positive for URL constants)
+    "EM101", "EM102", "TRY003",  # Exception messages (direct messages are clearer)
+    "TRY300",  # Return in try block (intentional for success paths)
+], "**/database/*.py" = [
+    "PLR0913",  # Too many arguments (necessary for comprehensive credential storage)
+    "S107",  # Hardcoded password (false positive for token_type default)
+    "PLW0603",  # Global statement (singleton pattern for manager)
+], "**/auth_helper.py" = [
+    "SLF001",  # Internal helper allowed to access private methods within same package
+] }
+
+[tool.uv.sources]
+discord-api = { workspace = true }
