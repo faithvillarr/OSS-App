@@ -8,11 +8,11 @@ Improve coverage for discord_impl.py.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
-import chat_api
 from discord_api.exceptions import (
     AuthenticationError,
     ChannelNotFoundError,
@@ -26,6 +26,9 @@ from main_service.main import (
     _initialize_seen_messages,
     _process_new_message,
 )
+
+if TYPE_CHECKING:
+    import chat_api
 
 pytestmark = pytest.mark.integration
 
