@@ -68,27 +68,28 @@ ignore = [
 [tool.mypy]
 strict = true
 explicit_package_bases = true # Required for src layout
-
-
+namespace_packages = true # Required for src layout with nested packages
+# Point mypy_path to the actual package source directories to help with module resolution
 mypy_path = [
-  "src/main_service",
-
-  # Ticketing Directories
-  "src/gtask_client_impl",
-  "src/task_client_api",
-  "src/tickets_api",
-  "src/tickets_client_impl",
-
-  # Chat Directories
-  "src/discord_api",
-  "src/discord_client_impl",
-  "src/chat_api",
-  "src/chat_client_impl",
-
-  # AI Directories
-  "src/ai_api",
-  "src/openai_impl",
+    "src/main_service/src",
+    "src/gtask_client_impl/src",
+    "src/task_client_api/src",
+    "src/tickets_api/src",
+    "src/tickets_client_impl/src",
+    "src/discord_api/src",
+    "src/discord_client_impl/src",
+    "src/chat_api/src",
+    "src/chat_client_impl/src",
+    "src/ai_api/src",
+    "src/openai_impl/src",
 ]
+exclude = [
+    ".*/tests/.*",  # Exclude all test directories to avoid duplicate module errors
+]
+
+# When running "mypy src/ --explicit-package-bases", mypy_path helps resolve modules
+# correctly by pointing to the actual package directories (src/*/src/)
+# This should prevent mypy from seeing the same file under different module names
 
 ignore_missing_imports = false
 warn_unused_ignores = false
@@ -99,6 +100,8 @@ module = [
     "google.*",
     "googleapiclient.*",
     "google_auth_oauthlib.*",
+    "authlib.*",
+    "discord_client_service.*",
 ]
 ignore_missing_imports = true
 

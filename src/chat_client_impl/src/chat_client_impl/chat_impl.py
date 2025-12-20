@@ -13,7 +13,7 @@ class ChatClient(ChatInterface):
         user_id: str | None = None,
         access_token: str | None = None,
         token_type: str | None = None,
-        **kwargs,
+        **kwargs: object,
     ) -> None:
         """Initialize a chat client.
 
@@ -29,22 +29,31 @@ class ChatClient(ChatInterface):
 
         """
         # Import discord_api and ensure discord_client_impl is registered
-        import discord_client_impl  # noqa: F401
+        import discord_client_impl  # noqa: F401, PLC0415
 
         # If access_token is provided, create DiscordClient directly
         # Otherwise, use discord_api.get_client(user_id)
         if access_token is not None:
-            from discord_client_impl import DiscordClient
+            from discord_client_impl import DiscordClient  # noqa: PLC0415
+
+            # Filter kwargs to only include valid DiscordClient parameters
+            # DiscordClient accepts: access_token, client_id, client_secret,
+            # redirect_uri, token_type
+            discord_kwargs: dict[str, str | None] = {}
+            for key in ("client_id", "client_secret", "redirect_uri"):
+                if key in kwargs:
+                    value = kwargs[key]
+                    discord_kwargs[key] = str(value) if value is not None else None
 
             self._discord_client = DiscordClient(
                 access_token=access_token,
                 token_type=token_type,
-                **kwargs,
+                **discord_kwargs,  # type: ignore[arg-type]
             )
         else:
-            import discord_api
+            import discord_api  # noqa: PLC0415
 
-            self._discord_client = discord_api.get_client(user_id=user_id)
+            self._discord_client = discord_api.get_client(user_id=user_id)  # type: ignore[assignment]
 
     def send_message(self, channel_id: str, content: str) -> bool:
         """Send a message to a channel.

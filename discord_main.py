@@ -19,9 +19,8 @@ from typing import Final
 
 from dotenv import load_dotenv
 
-import chat_client_impl  # noqa: F401
 import chat_api
-
+import chat_client_impl  # noqa: F401
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)

@@ -7,13 +7,13 @@ from unittest.mock import MagicMock, create_autospec
 import pytest
 from starlette.testclient import TestClient
 from task_client_adapter.service_client_adapter import ServiceClientAdapter
+from task_client_service import app as service_app
+from task_client_service import get_task_client
+from task_client_service_client import Client as ServiceClient
 
 import gtask_client_impl
 import task_client_api
 from task_client_api import Client, Task
-from task_client_service import app as service_app
-from task_client_service import get_task_client
-from task_client_service_client import Client as ServiceClient
 
 from .conftest import (
     DummyTask,

@@ -14,12 +14,12 @@ import pytest
 from starlette.testclient import TestClient
 from task_client_adapter.service_task import register as register_task
 from task_client_adapter.service_tasklist import register as register_tasklist
+from task_client_service import app as service_app
+from task_client_service import get_task_client
 
 import gtask_client_impl
 import task_client_api
 from task_client_api import Client, Task, TaskList
-from task_client_service import app as service_app
-from task_client_service import get_task_client
 
 
 @pytest.fixture(autouse=True)

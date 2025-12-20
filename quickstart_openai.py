@@ -2,11 +2,10 @@
 
 import logging
 
+from dotenv import load_dotenv
 
 import ai_api
 import openai_impl  # noqa: F401
-
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -29,7 +28,7 @@ def main() -> None:
         prompt,
     )
     print("💬 Response:", text_response)  # noqa: T201
-    print()
+    print()  # noqa: T201
 
     # Structured call
     schema = {
@@ -52,7 +51,7 @@ def main() -> None:
         prompt,
         response_schema=schema,
     )
-    print("📖 Story Idea:")
+    print("📖 Story Idea:")  # noqa: T201
     print(f"  Title: {structured.get('title', 'N/A')}")  # noqa: T201
     print(f"  Genre: {structured.get('genre', 'N/A')}")  # noqa: T201
     print(f"  Hero: {structured.get('protagonist', 'N/A')}")  # noqa: T201

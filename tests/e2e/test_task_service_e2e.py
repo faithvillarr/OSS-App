@@ -20,10 +20,10 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from gtask_client_impl.auth import OAuthManager
-
-import task_client_api
 from task_client_adapter import ServiceClientAdapter
 from task_client_service_client import Client
+
+import task_client_api
 
 if TYPE_CHECKING:
     from collections.abc import Generator
