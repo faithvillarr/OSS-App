@@ -133,6 +133,7 @@ jobs:
             uv run pytest -m circleci \
               --junitxml=test-results/circleci-tests.xml \
               --tb=short \
+              --no-cov \
               -v
       - save-test-results
 
@@ -159,6 +160,7 @@ jobs:
             uv run pytest -m integration \
               --junitxml=test-results/integration-tests.xml \
               --tb=short \
+              --no-cov \
               -v
       - save-test-results
 
@@ -184,6 +186,7 @@ jobs:
             uv run pytest -m e2e \
               --junitxml=test-results/e2e-tests.xml \
               --tb=short \
+              --no-cov \
               -v
       - save-test-results
 
