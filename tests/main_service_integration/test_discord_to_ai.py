@@ -380,7 +380,7 @@ class TestDiscordClientDirectMethods:
         with patch.object(client._http_client, "get", return_value=mock_response):
             messages = client.get_messages("channel_123", limit=10)
 
-            assert len(messages) == 2
+            assert len(messages) == 2  # noqa: PLR2004
             assert messages[0].id == "msg_1"
             assert messages[1].id == "msg_2"
 
@@ -402,7 +402,7 @@ class TestDiscordClientDirectMethods:
 
             # Verify limit was capped at 100
             call_args = mock_get.call_args
-            assert call_args[1]["params"]["limit"] == 100
+            assert call_args[1]["params"]["limit"] == 100  # noqa: PLR2004
 
     def test_get_messages_error(
         self,
@@ -584,7 +584,7 @@ class TestDiscordClientDirectMethods:
         with patch.object(client._http_client, "get", return_value=mock_response):
             channels = list(client.get_channels())
 
-            assert len(channels) == 2
+            assert len(channels) == 2  # noqa: PLR2004
 
     def test_get_channels_error(
         self,
@@ -1243,7 +1243,7 @@ class TestChatClientMethods:
         messages = client.get_messages("channel_123", limit=10)
 
         # Verify messages were converted to ChatMessage
-        assert len(messages) == 2
+        assert len(messages) == 2  # noqa: PLR2004
         from chat_client_impl.message_impl import ChatMessage
 
         assert isinstance(messages[0], ChatMessage)
@@ -1586,7 +1586,7 @@ class TestMainRoutingIntegration:
         )
 
         # Verify: AI was called for extraction and response
-        assert mock_ai_client.generate_response.call_count >= 2
+        assert mock_ai_client.generate_response.call_count >= 2  # noqa: PLR2004
 
         # Verify: Ticket was created
         mock_tickets_client.create_ticket.assert_called_once()
@@ -1764,10 +1764,10 @@ class TestMainRoutingIntegration:
         )
 
         # Verify: Both messages were processed
-        assert mock_discord_client.send_message.call_count == 2
+        assert mock_discord_client.send_message.call_count == 2  # noqa: PLR2004
         assert "msg_1" in seen_message_ids
         assert "msg_2" in seen_message_ids
-        assert len(updated_messages) == 2
+        assert len(updated_messages) == 2  # noqa: PLR2004
 
 
 @pytest.fixture
@@ -1846,7 +1846,7 @@ class TestMainCoverage:
 
         assert "msg_1" in seen
         assert "msg_2" in seen
-        assert len(seen) == 2
+        assert len(seen) == 2  # noqa: PLR2004
 
     def test_initialize_seen_messages_exception(
         self,
@@ -1954,7 +1954,7 @@ class TestMainCoverage:
         thread = _start_health_check_server(8080)
 
         assert thread is not None
-        assert thread.daemon is True
+        assert thread.daemon is False  # Non-daemon thread to keep process alive
         thread.join(timeout=0.1)  # Quick cleanup
 
 
@@ -2003,7 +2003,7 @@ class TestDiscordClientImplementationIntegration:
 
         messages = mock_discord_client.get_messages(channel_id="channel_123", limit=10)
 
-        assert len(messages) == 2
+        assert len(messages) == 2  # noqa: PLR2004
         assert messages[0].id == "msg_1"
         assert messages[1].id == "msg_2"
         mock_discord_client.get_messages.assert_called_once_with(
@@ -2153,7 +2153,7 @@ class TestTicketsClientImplementationIntegration:
             query="test", status=TicketStatus.OPEN
         )
         assert results[0]["success"] is True
-        assert len(results[0]["result"]["tickets"]) == 2
+        assert len(results[0]["result"]["tickets"]) == 2  # noqa: PLR2004
 
     def test_tickets_client_update_ticket_integration(
         self,
@@ -2251,7 +2251,7 @@ class TestAIClientImplementationIntegration:
         commands = routing.extract_commands("Create a ticket and search for it")
 
         assert mock_ai_client.generate_response.called
-        assert len(commands) == 2
+        assert len(commands) == 2  # noqa: PLR2004
         assert commands[0]["type"] == "create_ticket"
         assert commands[1]["type"] == "search_tickets"
 
@@ -2389,7 +2389,7 @@ class TestFullClientIntegrationFlow:
 
         # Verify: All client implementations were used correctly
         # 1. AI client for extraction
-        assert mock_ai_client.generate_response.call_count >= 2
+        assert mock_ai_client.generate_response.call_count >= 2  # noqa: PLR2004
 
         # 2. Tickets client for creation
         mock_tickets_client.create_ticket.assert_called_once_with(
@@ -2478,13 +2478,13 @@ class TestFullClientIntegrationFlow:
         results = ticketing.execute_commands(commands, mock_tickets_client)
 
         # Verify all operations were called
-        assert mock_tickets_client.create_ticket.call_count == 2
+        assert mock_tickets_client.create_ticket.call_count == 2  # noqa: PLR2004
         mock_tickets_client.search_tickets.assert_called_once()
         mock_tickets_client.update_ticket.assert_called_once()
         mock_tickets_client.delete_ticket.assert_called_once()
 
         # Verify all succeeded
-        assert len(results) == 5
+        assert len(results) == 5  # noqa: PLR2004
         assert all(r["success"] for r in results)
 
 

@@ -5,8 +5,12 @@ description = "Ticketing integration application with AI and chatbot capabilitie
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "authlib>=1.6.6",
+    "fastapi>=0.125.0",
+    "google-api-python-client>=2.187.0",
     "google-auth-oauthlib>=1.2.2",
     "mkdocs>=1.6.1",
+    "openai>=2.14.0",
     "openapi-python-client>=0.27.1",
     "python-dotenv>=1.0.0",
     "types-requests>=2.32.4.20250913",
@@ -105,7 +109,18 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 pythonpath = [
     ".", 
-    "src"
+    "src",
+    "src/main_service/src",
+    "src/discord_api/src",
+    "src/discord_client_impl/src",
+    "src/tickets_api/src",
+    "src/tickets_client_impl/src",
+    "src/gtask_client_impl/src",
+    "src/task_client_api/src",
+    "src/ai_api/src",
+    "src/openai_impl/src",
+    "src/chat_api/src",
+    "src/chat_client_impl/src",
 ]
 testpaths = ["tests", "src/*/tests"]
 addopts = ["--cov", "--cov-report=term-missing", "--import-mode=importlib"]
@@ -133,5 +148,8 @@ exclude_lines = [
 dev = [
     "mypy>=1.18.2",
     "pytest-cov>=7.0.0",
+    "respx>=0.22.0",
     "ruff>=0.13.2",
+    "starlette>=0.50.0",
+    "uvicorn>=0.38.0",
 ]

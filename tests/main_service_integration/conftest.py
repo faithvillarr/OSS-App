@@ -14,6 +14,10 @@ import pytest
 # Import main_service components
 # These imports are done lazily in fixtures to avoid import errors
 # The actual classes are imported when needed in test files
+from discord_client_impl.discord_impl import DiscordClient
+from tickets_client_impl.tickets_impl import TicketsClient
+
+from tickets_api import Ticket, TicketStatus
 
 pytestmark = pytest.mark.integration
 
@@ -36,7 +40,6 @@ def mock_discord_client() -> MagicMock:
         MagicMock configured as DiscordClient with common methods mocked.
 
     """
-    from discord_client_impl.discord_impl import DiscordClient
     mock_client = MagicMock(spec=DiscordClient)
     mock_client.send_message.return_value = True
     mock_client.get_messages.return_value = []
@@ -62,11 +65,9 @@ def mock_tickets_client() -> MagicMock:
         MagicMock configured as TicketsClient with common methods mocked.
 
     """
-    from tickets_client_impl.tickets_impl import TicketsClient
     mock_client = MagicMock(spec=TicketsClient)
 
     # Configure default return values
-    from tickets_api import Ticket, TicketStatus
 
     mock_ticket = MagicMock(spec=Ticket)
     mock_ticket.id = "test_ticket_123"
@@ -94,7 +95,6 @@ def mock_discord_context() -> MockDiscordContext:
         MockDiscordContext with Discord IDs and mock client.
 
     """
-    from discord_client_impl.discord_impl import DiscordClient
     return MockDiscordContext(
         mock_client=MagicMock(spec=DiscordClient),
         channel_id="123456789012345678",  # Discord channel ID format

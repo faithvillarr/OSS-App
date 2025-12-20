@@ -142,8 +142,8 @@ class TestRoutingTicketingIntegration:
         )
         assert len(results) == 1
         assert results[0]["success"] is True
-        assert len(results[0]["result"]["tickets"]) == 2
-        assert results[0]["result"]["count"] == 2
+        assert len(results[0]["result"]["tickets"]) == 2  # noqa: PLR2004
+        assert results[0]["result"]["count"] == 2  # noqa: PLR2004
 
     def test_extract_and_execute_update_ticket_command(
         self,
@@ -342,7 +342,7 @@ class TestRoutingTicketingIntegration:
         )
 
         # Verify: Both commands were executed
-        assert len(results) >= 2
+        assert len(results) >= 2  # noqa: PLR2004
         assert results[0]["command"]["type"] == "search_tickets"
         assert results[1]["command"]["type"] == "update_ticket"
         assert results[1]["success"] is True
@@ -394,7 +394,7 @@ class TestRoutingCoverage:
 
         assert len(commands) == 1
         assert commands[0]["type"] == "create_ticket"
-        assert mock_ai_client.generate_response.call_count == 2
+        assert mock_ai_client.generate_response.call_count == 2  # noqa: PLR2004
 
     def test_extract_commands_max_retries_exceeded(
         self,
@@ -407,7 +407,7 @@ class TestRoutingCoverage:
         commands = routing.extract_commands("Create a ticket")
 
         assert len(commands) == 0
-        assert mock_ai_client.generate_response.call_count == 3  # max_retries
+        assert mock_ai_client.generate_response.call_count == 3  # max_retries  # noqa: PLR2004
 
     def test_extract_commands_exception_handling(
         self,
@@ -943,7 +943,7 @@ class TestMainServiceTicketsClientIntegration:
         results = ticketing.execute_commands(commands, mock_tickets_client)
 
         # Verify all operations were called
-        assert len(results) == 5
+        assert len(results) == 5  # noqa: PLR2004
         assert all(r["success"] for r in results)
         mock_tickets_client.create_ticket.assert_called_once()
         mock_tickets_client.get_ticket.assert_called_once()
@@ -1122,7 +1122,7 @@ class TestMainServiceFullIntegration:
 
         # Verify: All components were used
         # 1. AI was called for extraction
-        assert mock_ai_client.generate_response.call_count >= 2
+        assert mock_ai_client.generate_response.call_count >= 2  # noqa: PLR2004
 
         # 2. Tickets client was called
         mock_tickets_client.create_ticket.assert_called_once()

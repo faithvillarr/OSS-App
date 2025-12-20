@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageParam
 
 
-class OpenAIClient(AIInterface):
+class OpenAIClient(AIInterface):  # type: ignore[misc]
     """Concrete implementation of the AIInterface abstraction using OpenAI API.
 
     This class provides a complete implementation of the ai_api.AIInterface

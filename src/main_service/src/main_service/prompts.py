@@ -3,15 +3,20 @@
 
 def get_command_extraction_prompt() -> str:
     """Get the system prompt for extracting ticket commands from user messages.
-    
+
     Returns:
         System prompt string for command extraction.
+
     """
     return """You are a ticket management assistant that helps users manage their tickets.
 
-CRITICAL: For every message, you must STRONGLY try to match a command. Only return an empty actions array if the message is clearly and completely unrelated to ticket/task management (e.g., "what's the weather?" or "tell me a joke"). When in doubt, interpret the message as a ticket operation - be generous and lenient in your interpretation.
+CRITICAL: For every message, you must STRONGLY try to match a command. Only return an empty
+actions array if the message is clearly and completely unrelated to ticket/task management
+(e.g., "what's the weather?" or "tell me a joke").
+When in doubt, interpret the message as a ticket operation - be generous and lenient.
 
-TERMINOLOGY: Users may refer to tickets as "tickets", "tasks", or "items" - these all mean the same thing. Treat them interchangeably.
+TERMINOLOGY: Users may refer to tickets as "tickets", "tasks", or "items" - these all mean the same thing.
+Treat them interchangeably.
 
 Available ticket operations:
 1. create_ticket - Create a new ticket
@@ -53,7 +58,7 @@ Examples:
 - "close ticket dTZ1SnJpVjZrdDJPX3JieQ" → ticket_id: "dTZ1SnJpVjZrdDJPX3JieQ"
 - "mark ticket abc-123-def as done" → ticket_id: "abc-123-def"
 
-IMPORTANT: 
+IMPORTANT:
 - Ticket IDs can be alphanumeric strings, may contain hyphens, underscores, or other characters
 - Extract the ID exactly as written in the message
 - If the user provides both an ID and a title, use the ID (it's more reliable)
@@ -165,11 +170,12 @@ Return a JSON object with an "actions" array containing the commands to execute.
 
 def get_response_generation_prompt() -> str:
     """Get the system prompt for generating natural language responses from ticket data.
-    
+
     Returns:
         System prompt string for response generation.
+
     """
-    return """You are a helpful ticket management assistant. Your role is to generate natural, 
+    return """You are a helpful ticket management assistant. Your role is to generate natural,
 conversational responses to users based on ticket operation results.
 
 Guidelines:
@@ -197,13 +203,14 @@ Generate a natural language response based on the user's original message and th
 
 def get_error_correction_prompt() -> str:
     """Get the system prompt for correcting failed commands based on error messages.
-    
+
     Returns:
         System prompt string for error correction.
+
     """
     return """You are a ticket management assistant that needs to correct a failed command.
 
-A ticket operation failed with an error. Your task is to analyze the error message and the 
+A ticket operation failed with an error. Your task is to analyze the error message and the
 original command, then provide a corrected version of the command.
 
 Common errors and fixes:
@@ -216,7 +223,7 @@ Instructions:
 - Analyze the error message carefully
 - Identify what went wrong with the original command
 - Provide a corrected command with all required parameters
-- If the error cannot be fixed (e.g., ticket doesn't exist), return the same command but 
+- If the error cannot be fixed (e.g., ticket doesn't exist), return the same command but
   note that the error should be communicated to the user
 - Only correct the specific issue - don't change other valid parameters
 
@@ -225,11 +232,12 @@ Return a JSON object with an "actions" array containing the corrected command(s)
 
 def get_followup_command_prompt() -> str:
     """Get the system prompt for generating follow-up commands based on previous results.
-    
+
     Returns:
         System prompt string for follow-up command generation.
+
     """
-    return """You are a ticket management assistant that generates follow-up commands based on 
+    return """You are a ticket management assistant that generates follow-up commands based on
 previous command results.
 
 You have access to:
@@ -322,7 +330,8 @@ To extract ticket_id:
 - Access the result: results[0].result.tickets
 - Find the matching ticket by comparing titles (case-insensitive, partial match OK)
 - Extract the id: results[0].result.tickets[0].id = "abc123"
-- Use this ticket_id in your update_ticket command: {"type": "update_ticket", "params": {"ticket_id": "abc123", "status": "in_progress"}}
+- Use this ticket_id in your update_ticket command:
+  {"type": "update_ticket", "params": {"ticket_id": "abc123", "status": "in_progress"}}
 
 Example 2: create_ticket or get_ticket result
 If the JSON shows:
@@ -381,7 +390,7 @@ CRITICAL RULES:
 Instructions:
 - Review the original user message to understand the full intent and identify which ticket they're referring to
 - Parse the "Raw JSON Results" section to extract data
-- For search_tickets results: 
+- For search_tickets results:
   * Parse results[].result.tickets[] array
   * Find matching ticket by comparing title with user's message (case-insensitive, partial match)
   * Extract its id field

@@ -373,7 +373,7 @@ class TestDiscordClientDirectMethods:
         with patch.object(client._http_client, "get", return_value=mock_response):
             messages = client.get_messages("channel_123", limit=10)
 
-            assert len(messages) == 2
+            assert len(messages) == 2  # noqa: PLR2004
             assert messages[0].id == "msg_1"
             assert messages[1].id == "msg_2"
 
@@ -395,7 +395,7 @@ class TestDiscordClientDirectMethods:
 
             # Verify limit was capped at 100
             call_args = mock_get.call_args
-            assert call_args[1]["params"]["limit"] == 100
+            assert call_args[1]["params"]["limit"] == 100  # noqa: PLR2004
 
     def test_get_messages_error(
         self,
@@ -576,7 +576,7 @@ class TestDiscordClientDirectMethods:
         with patch.object(client._http_client, "get", return_value=mock_response):
             channels = list(client.get_channels())
 
-            assert len(channels) == 2
+            assert len(channels) == 2  # noqa: PLR2004
 
     def test_get_channels_error(
         self,

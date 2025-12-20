@@ -140,8 +140,8 @@ class TestRoutingTicketingIntegration:
         )
         assert len(results) == 1
         assert results[0]["success"] is True
-        assert len(results[0]["result"]["tickets"]) == 2
-        assert results[0]["result"]["count"] == 2
+        assert len(results[0]["result"]["tickets"]) == 2  # noqa: PLR2004
+        assert results[0]["result"]["count"] == 2  # noqa: PLR2004
 
     def test_extract_and_execute_update_ticket_command(
         self,
@@ -340,7 +340,7 @@ class TestRoutingTicketingIntegration:
         )
 
         # Verify: Both commands were executed
-        assert len(results) >= 2
+        assert len(results) >= 2  # noqa: PLR2004
         assert results[0]["command"]["type"] == "search_tickets"
         assert results[1]["command"]["type"] == "update_ticket"
         assert results[1]["success"] is True
@@ -467,7 +467,7 @@ class TestTicketingCoverage:
 
         assert len(results) == 1
         assert results[0]["success"] is True
-        assert len(results[0]["result"]["tickets"]) == 2
+        assert len(results[0]["result"]["tickets"]) == 2  # noqa: PLR2004
         mock_tickets_client.search_tickets.assert_called_once_with(
             query="test",
             status=None,
@@ -1134,6 +1134,7 @@ class TestGTaskClientThroughTicketsClient:
     ) -> None:
         """Test that list_tasklists handles empty results (error path)."""
         # Mock empty tasklist result
+        mock_tickets_client._gtask_client = MagicMock()
         mock_tickets_client._gtask_client.list_tasklists.return_value = []
 
         # This should raise RuntimeError when trying to get default tasklist
@@ -1177,6 +1178,7 @@ class TestGTaskClientThroughTicketsClient:
         mock_task2.notes = "Description 2"
         mock_task2.status = "needsAction"
 
+        mock_tickets_client._gtask_client = MagicMock()
         mock_tickets_client._gtask_client.list_tasks.return_value = [mock_task1, mock_task2]
 
         # Convert to tickets for search_tickets
@@ -1222,6 +1224,7 @@ class TestGTaskClientThroughTicketsClient:
     ) -> None:
         """Test that list_tasks handles errors (HttpError, OSError, ValueError)."""
         # Mock list_tasks to raise HttpError
+        mock_tickets_client._gtask_client = MagicMock()
         mock_tickets_client._gtask_client.list_tasks.side_effect = HttpError(
             resp=MagicMock(status=500), content=b"Internal Server Error"
         )
@@ -1317,6 +1320,7 @@ class TestGTaskClientThroughTicketsClient:
     ) -> None:
         """Test that insert_task handles errors (HttpError, OSError, ValueError)."""
         # Mock insert_task to raise HttpError
+        mock_tickets_client._gtask_client = MagicMock()
         mock_tickets_client._gtask_client.insert_task.side_effect = HttpError(
             resp=MagicMock(status=400), content=b"Bad Request"
         )
@@ -1368,6 +1372,7 @@ class TestGTaskClientThroughTicketsClient:
     ) -> None:
         """Test that get_task handles task not found (ValueError)."""
         # Mock get_task to raise ValueError (task not found)
+        mock_tickets_client._gtask_client = MagicMock()
         mock_tickets_client._gtask_client.get_task.side_effect = ValueError("Task not found")
 
         # get_ticket should return None when task not found
@@ -1392,6 +1397,7 @@ class TestGTaskClientThroughTicketsClient:
     ) -> None:
         """Test that get_task handles errors (HttpError, OSError)."""
         # Mock get_task to raise HttpError
+        mock_tickets_client._gtask_client = MagicMock()
         mock_tickets_client._gtask_client.get_task.side_effect = HttpError(
             resp=MagicMock(status=500), content=b"Internal Server Error"
         )
@@ -1571,7 +1577,7 @@ class TestGTaskClientDirectMethods:
         result = client.list_tasklists()
 
         # Should return list of tasklists
-        assert len(result) == 2
+        assert len(result) == 2  # noqa: PLR2004
 
     def test_list_tasks_success_with_items(
         self,
@@ -1596,7 +1602,7 @@ class TestGTaskClientDirectMethods:
         result = client.list_tasks("tasklist_123")
 
         # Should return list of tasks
-        assert len(result) == 2
+        assert len(result) == 2  # noqa: PLR2004
 
     def test_insert_task_success_with_all_fields(
         self,
@@ -1935,7 +1941,7 @@ class TestGTaskClientDirectMethods:
         mock_service3.tasklists.return_value.list.return_value.execute.return_value = {"items": [{"id": "list1"}]}
         mock_service3.tasks.return_value.get.return_value.execute.side_effect = ValueError("Invalid data")
         client3 = GTaskClient(service=mock_service3)
-        with pytest.raises(ValueError, match=r"Invalid data"):
+        with pytest.raises(ValueError, match=r"Failed to retrieve task"):
             client3.get_task("tasklist_123", "task_123")
 
     def test_insert_tasklist_error_paths(
@@ -2325,7 +2331,7 @@ class TestTicketsClientPublicMethods:
 
         tickets = client.search_tickets()
 
-        assert len(tickets) == 2
+        assert len(tickets) == 2  # noqa: PLR2004
         mock_gtask_client.list_tasks.assert_called_once_with("tasklist_123")
 
     def test_search_tickets_with_status_filter(self) -> None:

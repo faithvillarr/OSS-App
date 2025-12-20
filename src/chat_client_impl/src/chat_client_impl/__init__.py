@@ -29,7 +29,7 @@ __all__ = ["ChatClient", "ChatMessage"]
 
 
 def get_client(user_id: str | None = None) -> ChatClient:
-    """Factory function to create a ChatClient instance.
+    """Create a ChatClient instance.
 
     Args:
         user_id: Optional user ID for multi-user authentication.
@@ -55,7 +55,7 @@ def get_client_impl(user_id: str | None = None) -> chat_api.ChatInterface:
     # Check for bot token in environment (for non-interactive/service account usage)
     bot_token = os.getenv("DISCORD_BOT_TOKEN")
     if bot_token:
-        return ChatClient(access_token=bot_token, token_type="Bot")
+        return ChatClient(access_token=bot_token, token_type="Bot")  # noqa: S106
     return ChatClient(user_id=user_id)
 
 

@@ -12,14 +12,19 @@ from unittest.mock import MagicMock
 
 import pytest
 from starlette.testclient import TestClient
-from task_client_adapter.service_task import register as register_task
-from task_client_adapter.service_tasklist import register as register_tasklist
+
+try:
+    from task_client_adapter.service_task import register as register_task
+    from task_client_adapter.service_tasklist import register as register_tasklist
+except ImportError:
+    pytest.skip("task_client_adapter not available", allow_module_level=True)
+
+from task_client_service import app as service_app
+from task_client_service import get_task_client
 
 import gtask_client_impl
 import task_client_api
 from task_client_api import Client, Task, TaskList
-from task_client_service import app as service_app
-from task_client_service import get_task_client
 
 
 @pytest.fixture(autouse=True)

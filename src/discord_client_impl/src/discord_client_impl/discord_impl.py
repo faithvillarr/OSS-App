@@ -29,7 +29,7 @@ class HTTPStatus(IntEnum):
     NOT_FOUND = 404
 
 
-class DiscordClient(ChatInterface):
+class DiscordClient(ChatInterface):  # type: ignore[misc]
     """Discord implementation of chat client with OAuth2 support."""
 
     DISCORD_API_BASE = "https://discord.com/api/v10"

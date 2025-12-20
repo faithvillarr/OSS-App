@@ -76,7 +76,7 @@ async def get_client_for_user(guild_id: str) -> DiscordClient:
                             "No refresh token available to refresh credentials "
                             f"for guild {guild_id}"
                         )
-                        raise ValueError(msg)
+                        raise ValueError(msg)  # noqa: TRY301
 
                     # convert to str explicitly to satisfy the DiscordClient API contract
                     new_token_data = client._refresh_access_token(str(refresh_token))
@@ -199,7 +199,7 @@ async def delete_user_credentials(guild_id: str) -> bool:
     else:
         LOGGER.warning("No credentials found to delete for guild: %s", guild_id)
 
-    return deleted
+    return bool(deleted)
 
 
 async def check_user_authenticated(guild_id: str) -> bool:

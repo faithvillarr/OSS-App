@@ -92,7 +92,7 @@ class TestChatClientInitialization:
             mock_discord_client = MagicMock()
             mock_discord_class.return_value = mock_discord_client
 
-            client = ChatClient(
+            ChatClient(
                 access_token="test_token",
                 token_type="Bot",
                 client_id="client_123",
@@ -167,7 +167,7 @@ class TestChatClientMethods:
         messages = client.get_messages("channel_123", limit=10)
 
         # Verify messages were converted to ChatMessage
-        assert len(messages) == 2
+        assert len(messages) == 2  # noqa: PLR2004
         from chat_client_impl.message_impl import ChatMessage
 
         assert isinstance(messages[0], ChatMessage)
@@ -398,19 +398,21 @@ class TestChatClientRegistration:
 
         from chat_client_impl import get_client_impl
 
-        with patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "bot_token_123"}):
+        with (
+            patch.dict(os.environ, {"DISCORD_BOT_TOKEN": "bot_token_123"}),
+            patch("discord_client_impl.DiscordClient") as mock_discord_class,
+        ):
             # Patch DiscordClient where it's imported in chat_impl
-            with patch("discord_client_impl.DiscordClient") as mock_discord_class:
-                mock_discord_client = MagicMock()
-                mock_discord_class.return_value = mock_discord_client
+            mock_discord_client = MagicMock()
+            mock_discord_class.return_value = mock_discord_client
 
-                client = get_client_impl()
+            client = get_client_impl()
 
-                # Verify ChatClient was created with bot token
-                mock_discord_class.assert_called_once_with(
-                    access_token="bot_token_123", token_type="Bot"
-                )
-                assert client._discord_client is mock_discord_client
+            # Verify ChatClient was created with bot token
+            mock_discord_class.assert_called_once_with(
+                access_token="bot_token_123", token_type="Bot"
+            )
+            assert client._discord_client is mock_discord_client
 
     def test_get_client_impl_without_bot_token(
         self,

@@ -3,8 +3,8 @@
 import logging
 import os
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any
 
 try:
     from opentelemetry import metrics
@@ -15,7 +15,11 @@ try:
     TELEMETRY_AVAILABLE = True
 except ImportError:
     TELEMETRY_AVAILABLE = False
-    logging.warning("OpenTelemetry not available, telemetry disabled")
+    _temp_logger = logging.getLogger(__name__)
+    _temp_logger.warning("OpenTelemetry not available, telemetry disabled")
+
+# Alias for backward compatibility with tests
+MONITORING_AVAILABLE = TELEMETRY_AVAILABLE
 
 logger = logging.getLogger(__name__)
 
@@ -23,83 +27,97 @@ logger = logging.getLogger(__name__)
 class Telemetry:
     """Telemetry client using OpenTelemetry Metrics API."""
 
-    def __init__(self, otlp_endpoint: str | None = None):
+    def __init__(self, otlp_endpoint: str | None = None) -> None:
         """Initialize telemetry client.
 
         Args:
             otlp_endpoint: OTLP exporter endpoint. Defaults to localhost:4317 or from OTEL_EXPORTER_OTLP_ENDPOINT env var.
+
         """
-        if not TELEMETRY_AVAILABLE:
+        # Check MONITORING_AVAILABLE first (can be patched in tests), then TELEMETRY_AVAILABLE
+        if not MONITORING_AVAILABLE or not TELEMETRY_AVAILABLE:
             self.enabled = False
             logger.warning("Telemetry disabled: OpenTelemetry not installed")
             return
 
         # Get OTLP endpoint from parameter, environment variable, or default
         endpoint = otlp_endpoint or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
-        
+
         try:
             # Create resource with Cloud Run metadata
-            resource_attributes = {
+            namespace = os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT") or "unknown"
+
+            # Disable telemetry if no project ID is available
+            if namespace == "unknown":
+                self.enabled = False
+                logger.warning("Telemetry disabled: GCP project ID not found")
+                return
+            resource_attributes: dict[str, str] = {
                 "service.name": os.getenv("K_SERVICE", "main-service"),
-                "service.namespace": os.getenv("GOOGLE_CLOUD_PROJECT") or os.getenv("GCP_PROJECT", "unknown"),
+                "service.namespace": namespace,
             }
-            
+
             # Add Cloud Run specific attributes if available
             if os.getenv("K_REVISION"):
-                resource_attributes["cloud.run.revision"] = os.getenv("K_REVISION")
+                revision = os.getenv("K_REVISION")
+                if revision:
+                    resource_attributes["cloud.run.revision"] = revision
             if os.getenv("CLOUD_RUN_REGION"):
-                resource_attributes["cloud.region"] = os.getenv("CLOUD_RUN_REGION")
-            
+                region = os.getenv("CLOUD_RUN_REGION")
+                if region:
+                    resource_attributes["cloud.region"] = region
+
             resource = Resource.create(resource_attributes)
-            
+
             # Create OTLP exporter
             exporter = OTLPMetricExporter(
                 endpoint=endpoint,
                 insecure=True,  # Use insecure for localhost communication
             )
-            
+
             # Create metric reader with async export
             reader = PeriodicExportingMetricReader(
                 exporter=exporter,
                 export_interval_millis=10000,  # Export every 10 seconds
             )
-            
+
             # Create meter provider
             self.meter_provider = MeterProvider(
                 resource=resource,
                 metric_readers=[reader],
             )
-            
+
             # Set global meter provider
             metrics.set_meter_provider(self.meter_provider)
-            
+
             # Get meter
             self.meter = metrics.get_meter(__name__)
-            
+
             # Create metric instruments
             self.message_processing_duration = self.meter.create_histogram(
                 name="message_processing_duration",
                 description="End-to-end latency from message processing start to response posting (seconds)",
                 unit="s",
             )
-            
+
             self.message_processing_total = self.meter.create_counter(
                 name="message_processing_total",
                 description="Total number of messages processed, labeled by status (success/failure)",
                 unit="1",
             )
-            
+
             self.enabled = True
             logger.info("Telemetry initialized with OTLP endpoint: %s", endpoint)
-        except Exception as e:
+        except (OSError, ValueError, AttributeError) as e:
             self.enabled = False
             logger.warning("Telemetry disabled: failed to initialize OpenTelemetry: %s", e)
 
     def record_message_processing(
         self,
         duration_seconds: float,
+        *,
         success: bool,
-        error_type: str | None = None,
+        error_type: str | None = None,  # noqa: ARG002
     ) -> None:
         """Record message processing metrics.
 
@@ -107,6 +125,7 @@ class Telemetry:
             duration_seconds: Time taken to process the message (E2E latency)
             success: Whether processing was successful
             error_type: Deprecated, kept for backward compatibility but not used
+
         """
         if not self.enabled:
             return
@@ -117,7 +136,7 @@ class Telemetry:
                 duration_seconds,
                 attributes={"status": "success" if success else "failure"},
             )
-            
+
             # Record success/failure counter
             # Success rate = message_processing_total{status="success"} / message_processing_total
             # Failure rate = message_processing_total{status="failure"} / message_processing_total
@@ -126,11 +145,13 @@ class Telemetry:
                 1,
                 attributes={"status": status},
             )
-        except Exception as e:
+        except (AttributeError, ValueError) as e:
             logger.debug("Failed to record message processing metric: %s", e)
 
     @contextmanager
-    def measure_message_processing(self, error_type_map: dict[type[Exception], str] | None = None):
+    def measure_message_processing(  # type: ignore[misc, arg-type]
+        self, error_type_map: dict[type[Exception], str] | None = None
+    ) -> Iterator[None]:
         """Context manager to measure message processing time and success/failure.
 
         Args:
@@ -138,6 +159,7 @@ class Telemetry:
 
         Yields:
             None
+
         """
         start_time = time.time()
         success = True
@@ -147,21 +169,18 @@ class Telemetry:
             yield
         except Exception as e:
             success = False
-            if error_type_map:
-                error_type = error_type_map.get(type(e), type(e).__name__)
-            else:
-                error_type = type(e).__name__
+            error_type = error_type_map.get(type(e), type(e).__name__) if error_type_map else type(e).__name__
             raise
         finally:
             duration = time.time() - start_time
-            self.record_message_processing(duration, success, error_type)
+            self.record_message_processing(duration, success=success, error_type=error_type)
 
     def shutdown(self) -> None:
         """Shutdown the telemetry client and flush remaining metrics."""
         if self.enabled and hasattr(self, "meter_provider"):
             try:
                 self.meter_provider.shutdown()
-            except Exception as e:
+            except (OSError, AttributeError) as e:
                 logger.debug("Error shutting down meter provider: %s", e)
 
 
@@ -174,8 +193,9 @@ def get_telemetry() -> Telemetry:
 
     Returns:
         Telemetry instance
+
     """
-    global _telemetry
+    global _telemetry  # noqa: PLW0603
     if _telemetry is None:
         _telemetry = Telemetry()
     return _telemetry

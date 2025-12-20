@@ -31,15 +31,15 @@ MAX_LOG_CONTENT_LENGTH = 50
 
 class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
     """Simple HTTP handler for Cloud Run health checks."""
-    
-    def do_GET(self):
+
+    def do_GET(self) -> None:
         """Handle GET requests with a simple 200 OK response."""
         self.send_response(200)
         self.send_header("Content-type", "text/plain")
         self.end_headers()
         self.wfile.write(b"OK")
-    
-    def log_message(self, format, *args):
+
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002, ARG002
         """Suppress HTTP server logs to reduce noise."""
         # Only log errors, not every health check request
         if self.path != "/" and not self.path.startswith("/health"):
@@ -48,22 +48,23 @@ class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
 
 def _start_health_check_server(port: int) -> threading.Thread:
     """Start a simple HTTP server for Cloud Run health checks.
-    
+
     Args:
         port: Port number to listen on.
-        
+
     Returns:
         Thread running the HTTP server.
+
     """
-    def run_server():
+    def run_server() -> None:
         try:
             with socketserver.TCPServer(("", port), HealthCheckHandler) as httpd:
                 logger.info("Health check server started on port %d", port)
                 httpd.serve_forever()
-        except Exception as e:
-            logger.error("Health check server error: %s", e)
+        except Exception:
+            logger.exception("Health check server error")
             # Don't exit - let the polling service continue
-    
+
     # Make this a non-daemon thread so it keeps the process alive
     # This ensures Cloud Run sees the container as healthy even during initialization
     server_thread = threading.Thread(target=run_server, daemon=False)
@@ -73,70 +74,74 @@ def _start_health_check_server(port: int) -> threading.Thread:
 
 def _initialize_ticket_client() -> TicketsClient:
     """Initialize the ticket client with error handling and logging.
-    
+
     Returns:
         Initialized TicketsClient instance.
-        
+
     Raises:
         SystemExit: If ticket client initialization fails.
+
     """
     logger.info("Initializing ticket client...")
     try:
         ticket_client = TicketsClient(interactive=False)
         logger.info("✓ Ticket client initialized successfully")
-        
+
         # Verify the client can access tasklists (health check)
         try:
-            tasklists = ticket_client._gtask_client.list_tasklists()
+            tasklists = ticket_client._gtask_client.list_tasklists()  # noqa: SLF001
             if tasklists:
                 logger.info("✓ Ticket client health check passed: %d tasklist(s) available", len(tasklists))
             else:
                 logger.warning("⚠ Ticket client initialized but no tasklists found")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning("⚠ Ticket client health check failed: %s", e)
             logger.warning("  Continuing anyway - operations may fail if tasklists are needed")
-        
-        return ticket_client
     except Exception as e:
-        logger.exception("✗ Failed to initialize ticket client: %s", e)
-        logger.error("  This is a critical error - the service cannot function without ticket client")
-        raise SystemExit(1)
+        logger.exception("✗ Failed to initialize ticket client")
+        logger.exception("  This is a critical error - the service cannot function without ticket client")
+        raise SystemExit(1) from e
+    else:
+        return ticket_client
 
 
 def _initialize_ai_client() -> ai_api.AIInterface:
     """Initialize and validate the AI client with error handling and logging.
-    
+
     Returns:
         Initialized AIInterface instance.
-        
+
     Raises:
         SystemExit: If AI client initialization fails.
+
     """
     logger.info("Initializing AI client...")
     try:
         ai_client = ai_api.get_client()
         logger.info("✓ AI client retrieved successfully")
-        
+
         # Verify the client has the required interface (health check)
         try:
-            if not hasattr(ai_client, 'generate_response'):
-                raise AttributeError("AI client missing 'generate_response' method")
-            if not callable(getattr(ai_client, 'generate_response', None)):
-                raise AttributeError("AI client 'generate_response' is not callable")
+            if not hasattr(ai_client, "generate_response"):
+                msg = "AI client missing 'generate_response' method"
+                raise AttributeError(msg)  # noqa: TRY301
+            if not callable(getattr(ai_client, "generate_response", None)):
+                msg = "AI client 'generate_response' is not callable"
+                raise TypeError(msg)  # noqa: TRY301
             logger.info("✓ AI client health check passed: interface validated")
-        except Exception as e:
+        except (AttributeError, TypeError) as e:
             logger.warning("⚠ AI client health check failed: %s", e)
             logger.warning("  Continuing anyway - AI operations may fail at runtime")
-        
-        return ai_client
     except NotImplementedError:
         logger.exception("✗ AI client not registered - no implementation found")
-        logger.error("  Ensure an AI implementation (e.g., openai_impl) is imported")
-        raise SystemExit(1)
+        logger.exception("  Ensure an AI implementation (e.g., openai_impl) is imported")
+        raise SystemExit(1) from None
     except Exception as e:
-        logger.exception("✗ Failed to initialize AI client: %s", e)
-        logger.error("  This is a critical error - the service cannot function without AI client")
-        raise SystemExit(1)
+        logger.exception("✗ Failed to initialize AI client")
+        logger.exception("  This is a critical error - the service cannot function without AI client")
+        raise SystemExit(1) from e
+    else:
+        return ai_client
 
 
 def _determine_bot_user_id(client: chat_api.ChatInterface, channel_id: str) -> str | None:
@@ -268,7 +273,7 @@ def _process_new_message(
         try:
             # Extract commands from user message using AI
             commands = routing.extract_commands(msg.content)
-            
+
             if not commands:
                 # No ticket commands found, generate a helpful response
                 response = routing.generate_response(msg.content, [])
@@ -280,18 +285,19 @@ def _process_new_message(
                     ticket_client=ticket_client,
                     max_iterations=5,
                 )
-                
+
                 # Generate natural language response from all accumulated results
                 response = routing.generate_response(msg.content, results)
-            
+
             # Send response to user
             send_success = client.send_message(channel_id=channel_id, content=response)
             if not send_success:
                 logger.error("Failed to send response to message %s", msg_id)
                 # Raise exception to mark this as a failure in telemetry
-                raise RuntimeError("Failed to send message response")
-        except Exception as e:
-            logger.exception("Error processing message %s: %s", msg_id, e)
+                msg = "Failed to send message response"
+                raise RuntimeError(msg)  # noqa: TRY301
+        except Exception:
+            logger.exception("Error processing message %s", msg_id)
             # Send error response to user
             error_response = "I encountered an error while processing your request. Please try again."
             try:
@@ -303,7 +309,7 @@ def _process_new_message(
     seen_message_ids.add(msg_id)
 
 
-def _process_new_messages(
+def _process_new_messages(  # noqa: PLR0913
     client: chat_api.ChatInterface,
     new_messages: list[chat_api.Message],
     channel_id: str,
@@ -332,10 +338,11 @@ def _process_new_messages(
 
     # Re-fetch messages after sending response to update our view
     # This ensures our own response and any other new messages are tracked
-    return client.get_messages(channel_id=channel_id, limit=message_check_limit)
+    messages = client.get_messages(channel_id=channel_id, limit=message_check_limit)
+    return list(messages)  # type: ignore[no-any-return]
 
 
-def _poll_cycle(
+def _poll_cycle(  # noqa: PLR0913
     client: chat_api.ChatInterface,
     channel_id: str,
     message_check_limit: int,
@@ -421,14 +428,14 @@ def _run_polling_loop(
 def main() -> None:
     """Run the Discord polling service."""
     logger.info("Starting Discord message polling service...")
-    
+
     # Initialize telemetry
     telemetry = get_telemetry()
     if telemetry.enabled:
         logger.info("✓ Telemetry enabled")
     else:
         logger.info("⚠ Telemetry disabled (will continue without metrics)")
-    
+
     # Validate required environment variables
     channel_id = os.getenv("DISCORD_CHANNEL_ID")
     if not channel_id:
@@ -442,29 +449,29 @@ def main() -> None:
         client = chat_api.get_client()
         logger.info("✓ Chat client initialized successfully")
     except Exception as e:
-        logger.exception("✗ Failed to initialize chat client: %s", e)
-        logger.error("  This is a critical error - the service cannot function without chat client")
-        raise SystemExit(1)
+        logger.exception("✗ Failed to initialize chat client")
+        logger.exception("  This is a critical error - the service cannot function without chat client")
+        raise SystemExit(1) from e
 
     # Initialize ticket client (with error handling)
     ticket_client = _initialize_ticket_client()
 
     # Initialize AI client (with error handling)
-    ai_client = _initialize_ai_client()
+    _initialize_ai_client()
     # Store reference for potential future use, though routing.py gets it on-demand
     logger.debug("AI client ready for use by routing module")
 
     # Initialize bot user ID and seen messages
     logger.info("Determining bot user ID...")
     bot_user_id = _determine_bot_user_id(client, channel_id)
-    
+
     logger.info("Initializing seen messages set...")
     seen_message_ids = _initialize_seen_messages(client, channel_id)
 
     # Start health check HTTP server for Cloud Run
     # Cloud Run requires services to listen on a port for health checks
     port = int(os.getenv("PORT", "8080"))
-    health_server_thread = _start_health_check_server(port)
+    _start_health_check_server(port)
     logger.info("Health check server thread started (daemon)")
 
     # Small delay to ensure initialization is complete before starting to poll

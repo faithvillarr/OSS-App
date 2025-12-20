@@ -5,7 +5,7 @@ from chat_api import ChatInterface, Message
 from chat_client_impl.message_impl import ChatMessage
 
 
-class ChatClient(ChatInterface):
+class ChatClient(ChatInterface):  # type: ignore[misc]
     """Chat API client implementation using Discord as the backend."""
 
     def __init__(
@@ -13,7 +13,7 @@ class ChatClient(ChatInterface):
         user_id: str | None = None,
         access_token: str | None = None,
         token_type: str | None = None,
-        **kwargs,
+        **kwargs: object,
     ) -> None:
         """Initialize a chat client.
 
@@ -29,12 +29,12 @@ class ChatClient(ChatInterface):
 
         """
         # Import discord_api and ensure discord_client_impl is registered
-        import discord_client_impl  # noqa: F401
+        import discord_client_impl  # noqa: F401, PLC0415
 
         # If access_token is provided, create DiscordClient directly
         # Otherwise, use discord_api.get_client(user_id)
         if access_token is not None:
-            from discord_client_impl import DiscordClient
+            from discord_client_impl import DiscordClient  # noqa: PLC0415
 
             self._discord_client = DiscordClient(
                 access_token=access_token,
@@ -42,7 +42,7 @@ class ChatClient(ChatInterface):
                 **kwargs,
             )
         else:
-            import discord_api
+            import discord_api  # noqa: PLC0415
 
             self._discord_client = discord_api.get_client(user_id=user_id)
 
@@ -57,7 +57,8 @@ class ChatClient(ChatInterface):
             bool: True if the message was successfully sent, False otherwise.
 
         """
-        return self._discord_client.send_message(channel_id, content)
+        result = self._discord_client.send_message(channel_id, content)
+        return bool(result)
 
     def get_messages(self, channel_id: str, limit: int = 10) -> list[Message]:
         """Retrieve recent messages from a channel.
@@ -84,4 +85,5 @@ class ChatClient(ChatInterface):
             bool: True if the message was successfully deleted, False otherwise.
 
         """
-        return self._discord_client.delete_message(channel_id, message_id)
+        result = self._discord_client.delete_message(channel_id, message_id)
+        return bool(result)

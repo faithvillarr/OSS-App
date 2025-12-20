@@ -367,7 +367,7 @@ class TestTicketsClientPublicMethods:
 
         tickets = client.search_tickets()
 
-        assert len(tickets) == 2
+        assert len(tickets) == 2  # noqa: PLR2004
         mock_gtask_client.list_tasks.assert_called_once_with("tasklist_123")
 
     def test_search_tickets_with_status_filter(self) -> None:
@@ -607,7 +607,7 @@ class TestTicketsClientPublicMethods:
 
         client = TicketsClient(gtask_client=mock_gtask_client)
 
-        with pytest.raises(ValueError, match="Ticket .* not found"):
+        with pytest.raises(ValueError, match=r"Ticket .* not found"):
             client.update_ticket("nonexistent", status=TicketStatus.CLOSED)
 
     def test_delete_ticket_success(self) -> None:

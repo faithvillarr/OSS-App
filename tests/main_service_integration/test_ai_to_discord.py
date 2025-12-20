@@ -90,7 +90,7 @@ class TestMainRoutingIntegration:
         )
 
         # Verify: AI was called for extraction and response
-        assert mock_ai_client.generate_response.call_count >= 2
+        assert mock_ai_client.generate_response.call_count >= 2  # noqa: PLR2004
 
         # Verify: Ticket was created
         mock_tickets_client.create_ticket.assert_called_once()
@@ -268,10 +268,10 @@ class TestMainRoutingIntegration:
         )
 
         # Verify: Both messages were processed
-        assert mock_discord_client.send_message.call_count == 2
+        assert mock_discord_client.send_message.call_count == 2  # noqa: PLR2004
         assert "msg_1" in seen_message_ids
         assert "msg_2" in seen_message_ids
-        assert len(updated_messages) == 2
+        assert len(updated_messages) == 2  # noqa: PLR2004
 
 
 @pytest.fixture
@@ -321,7 +321,7 @@ class TestRoutingCoverage:
 
         assert len(commands) == 1
         assert commands[0]["type"] == "create_ticket"
-        assert mock_ai_client.generate_response.call_count == 2
+        assert mock_ai_client.generate_response.call_count == 2  # noqa: PLR2004
 
     def test_extract_commands_max_retries_exceeded(
         self,
@@ -334,7 +334,7 @@ class TestRoutingCoverage:
         commands = routing.extract_commands("Create a ticket")
 
         assert len(commands) == 0
-        assert mock_ai_client.generate_response.call_count == 3  # max_retries
+        assert mock_ai_client.generate_response.call_count == 3  # max_retries  # noqa: PLR2004
 
     def test_extract_commands_exception_handling(
         self,
