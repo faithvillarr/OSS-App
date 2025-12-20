@@ -5,7 +5,7 @@ from tickets_api import Ticket as TicketABC
 from tickets_api import TicketStatus
 
 
-class Ticket(TicketABC):
+class Ticket(TicketABC):  # type: ignore[misc]
     """Concrete implementation of Ticket using Google Tasks."""
 
     IP_PREFIX = "(IP) "
@@ -22,12 +22,12 @@ class Ticket(TicketABC):
     @property
     def id(self) -> str:
         """Unique identifier for the ticket."""
-        return self._task.id
+        return str(self._task.id)
 
     @property
     def title(self) -> str:
         """The title of the ticket."""
-        title = self._task.title
+        title = str(self._task.title)
         # Remove (IP) prefix if present
         if title.startswith(self.IP_PREFIX):
             return title[len(self.IP_PREFIX) :]
@@ -36,7 +36,7 @@ class Ticket(TicketABC):
     @property
     def description(self) -> str:
         """The detailed description of the ticket."""
-        return self._task.notes or ""
+        return str(self._task.notes or "")
 
     @property
     def status(self) -> TicketStatus:

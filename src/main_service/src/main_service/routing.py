@@ -71,7 +71,14 @@ COMMAND_SCHEMA = {
                                     "description": "The assignee of the ticket (optional for create_ticket)",
                                 },
                             },
-                            "required": ["ticket_id", "title", "description", "status", "query", "assignee"],
+                            "required": [
+                                "ticket_id",
+                                "title",
+                                "description",
+                                "status",
+                                "query",
+                                "assignee",
+                            ],
                             "additionalProperties": False,  # Required by OpenAI's structured output format
                             # Note: All possible parameters are defined above
                             # OpenAI requires all properties to be in 'required', but actual
@@ -142,27 +149,49 @@ Required format:
                 assert isinstance(response, dict), "Response should be dict after validation"
                 actions: list[dict[str, Any]] = response.get("actions", [])
                 if attempt > 0:
-                    logger.info("Successfully extracted %d command(s) after %d retry attempt(s)", len(actions), attempt)
+                    logger.info(
+                        "Successfully extracted %d command(s) after %d retry attempt(s)",
+                        len(actions),
+                        attempt,
+                    )
                 else:
                     logger.info("Extracted %d command(s) from user message", len(actions))
 
                 # Log each extracted command with details
                 for i, action in enumerate(actions, 1):
-                    logger.info("Extracted command %d: type=%s, params=%s", i, action.get("type"), action.get("params", {}))
+                    logger.info(
+                        "Extracted command %d: type=%s, params=%s",
+                        i,
+                        action.get("type"),
+                        action.get("params", {}),
+                    )
 
                 return actions
 
             # Validation failed - store error for retry
             validation_errors.append(error_msg or "Unknown validation error")
-            logger.warning("Command extraction validation failed (attempt %d/%d): %s", attempt + 1, max_retries, error_msg)
+            logger.warning(
+                "Command extraction validation failed (attempt %d/%d): %s",
+                attempt + 1,
+                max_retries,
+                error_msg,
+            )
 
             # If this was the last attempt, log and return empty
             if attempt == max_retries - 1:
-                logger.error("Failed to extract valid commands after %d attempts. Errors: %s", max_retries, validation_errors)
+                logger.error(
+                    "Failed to extract valid commands after %d attempts. Errors: %s",
+                    max_retries,
+                    validation_errors,
+                )
                 return []
 
         except Exception:
-            logger.exception("Failed to extract commands from user message (attempt %d/%d)", attempt + 1, max_retries)
+            logger.exception(
+                "Failed to extract commands from user message (attempt %d/%d)",
+                attempt + 1,
+                max_retries,
+            )
             # If this was the last attempt, return empty
             if attempt == max_retries - 1:
                 return []
@@ -278,19 +307,33 @@ Required format:
                 assert isinstance(response, dict), "Response should be dict after validation"
                 actions: list[dict[str, Any]] = response.get("actions", [])
                 if attempt > 0:
-                    logger.info("Successfully corrected %d command(s) after %d retry attempt(s)", len(actions), attempt)
+                    logger.info(
+                        "Successfully corrected %d command(s) after %d retry attempt(s)",
+                        len(actions),
+                        attempt,
+                    )
                 else:
                     logger.info("AI corrected %d command(s)", len(actions))
 
                 # Log each corrected command with details
                 for i, action in enumerate(actions, 1):
-                    logger.info("Corrected command %d: type=%s, params=%s", i, action.get("type"), action.get("params", {}))
+                    logger.info(
+                        "Corrected command %d: type=%s, params=%s",
+                        i,
+                        action.get("type"),
+                        action.get("params", {}),
+                    )
 
                 return actions
 
             # Validation failed - store error for retry
             validation_errors.append(error_msg or "Unknown validation error")
-            logger.warning("Command correction validation failed (attempt %d/%d): %s", attempt + 1, max_retries, error_msg)
+            logger.warning(
+                "Command correction validation failed (attempt %d/%d): %s",
+                attempt + 1,
+                max_retries,
+                error_msg,
+            )
 
             # If this was the last attempt, log and return original
             if attempt == max_retries - 1:
@@ -352,7 +395,11 @@ def execute_commands_iteratively(  # noqa: C901, PLR0912, PLR0915
         current_command = pending_commands[0]
         pending_commands = pending_commands[1:]
 
-        logger.info("Executing command: type=%s, params=%s", current_command.get("type"), current_command.get("params", {}))
+        logger.info(
+            "Executing command: type=%s, params=%s",
+            current_command.get("type"),
+            current_command.get("params", {}),
+        )
 
         # Execute the command
         command_results = ticketing_module.execute_commands([current_command], ticket_client)
@@ -364,7 +411,11 @@ def execute_commands_iteratively(  # noqa: C901, PLR0912, PLR0915
             if result.get("success"):
                 logger.info("Command succeeded in iteration %d", iteration)
             else:
-                logger.warning("Command failed in iteration %d: %s", iteration, result.get("error", "Unknown error"))
+                logger.warning(
+                    "Command failed in iteration %d: %s",
+                    iteration,
+                    result.get("error", "Unknown error"),
+                )
 
         # After each command execution, ask AI for follow-up commands
         # This allows the AI to use results from previous commands to generate next commands
@@ -373,7 +424,11 @@ def execute_commands_iteratively(  # noqa: C901, PLR0912, PLR0915
             results_summary = _format_results_for_ai(all_results)
 
             # Log the raw JSON results being passed to AI (for debugging)
-            logger.debug("Results being passed to AI (iteration %d): %s", iteration, _format_results_as_json(all_results))
+            logger.debug(
+                "Results being passed to AI (iteration %d): %s",
+                iteration,
+                _format_results_as_json(all_results),
+            )
 
             # Determine context message
             context_message = ""
@@ -433,7 +488,11 @@ If the request is fully satisfied, return an empty actions array []"""
             system_prompt = get_followup_command_prompt()
 
             try:
-                logger.info("Asking AI for follow-up commands (iteration %d, %d pending)", iteration, len(pending_commands))
+                logger.info(
+                    "Asking AI for follow-up commands (iteration %d, %d pending)",
+                    iteration,
+                    len(pending_commands),
+                )
                 response = ai_client.generate_response(
                     user_input=user_input,
                     system_prompt=system_prompt,
@@ -447,18 +506,29 @@ If the request is fully satisfied, return an empty actions array []"""
                     assert isinstance(response, dict), "Response should be dict after validation"
                     followup_commands = response.get("actions", [])
                     if followup_commands:
-                        logger.info("AI generated %d follow-up command(s) in iteration %d", len(followup_commands), iteration)
+                        logger.info(
+                            "AI generated %d follow-up command(s) in iteration %d",
+                            len(followup_commands),
+                            iteration,
+                        )
                         # Add follow-up commands to pending queue (they'll be executed next)
                         # We prepend them so they execute before remaining initial commands
                         # This allows follow-ups that depend on results to execute immediately
                         pending_commands = followup_commands + pending_commands
                     else:
-                        logger.info("AI determined no more commands needed (iteration %d)", iteration)
+                        logger.info(
+                            "AI determined no more commands needed (iteration %d)",
+                            iteration,
+                        )
                         # If no follow-ups and no pending commands, we're done
                         if not pending_commands:
                             break
                 else:
-                    logger.warning("AI follow-up response validation failed (iteration %d): %s", iteration, error_msg)
+                    logger.warning(
+                        "AI follow-up response validation failed (iteration %d): %s",
+                        iteration,
+                        error_msg,
+                    )
                     # Continue with any remaining pending commands
                     if not pending_commands:
                         break
@@ -469,11 +539,18 @@ If the request is fully satisfied, return an empty actions array []"""
                     break
 
     if iteration >= max_iterations:
-        logger.warning("Reached maximum iterations (%d). Some commands may not have been executed.", max_iterations)
+        logger.warning(
+            "Reached maximum iterations (%d). Some commands may not have been executed.",
+            max_iterations,
+        )
         if pending_commands:
             logger.warning("Remaining pending commands: %d", len(pending_commands))
 
-    logger.info("Iterative execution complete: %d iteration(s), %d total result(s)", iteration, len(all_results))
+    logger.info(
+        "Iterative execution complete: %d iteration(s), %d total result(s)",
+        iteration,
+        len(all_results),
+    )
 
     return all_results
 
@@ -622,10 +699,16 @@ def _validate_command_response(  # noqa: C901, PLR0911
 
         action_type = action["type"]
         if not isinstance(action_type, str):
-            return False, f"Action {i} 'type' is not a string, got {type(action_type).__name__}"
+            return (
+                False,
+                f"Action {i} 'type' is not a string, got {type(action_type).__name__}",
+            )
 
         if action_type not in valid_types:
-            return False, f"Action {i} has invalid 'type': '{action_type}'. Must be one of {valid_types}"
+            return (
+                False,
+                f"Action {i} has invalid 'type': '{action_type}'. Must be one of {valid_types}",
+            )
 
         # Check for "params" key
         if "params" not in action:
@@ -633,6 +716,9 @@ def _validate_command_response(  # noqa: C901, PLR0911
 
         params = action["params"]
         if not isinstance(params, dict):
-            return False, f"Action {i} 'params' is not a dict, got {type(params).__name__}"
+            return (
+                False,
+                f"Action {i} 'params' is not a dict, got {type(params).__name__}",
+            )
 
     return True, None

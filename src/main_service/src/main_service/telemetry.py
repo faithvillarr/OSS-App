@@ -158,7 +158,7 @@ class Telemetry:
             raise
         finally:
             duration = time.time() - start_time
-            self.record_message_processing(duration, success, error_type)
+            self.record_message_processing(duration, success=success, error_type=error_type)
 
     def shutdown(self) -> None:
         """Shutdown the telemetry client and flush remaining metrics."""

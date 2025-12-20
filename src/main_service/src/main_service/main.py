@@ -378,7 +378,8 @@ def _process_new_messages(  # noqa: PLR0913
 
     # Re-fetch messages after sending response to update our view
     # This ensures our own response and any other new messages are tracked
-    return client.get_messages(channel_id=channel_id, limit=message_check_limit)
+    messages = client.get_messages(channel_id=channel_id, limit=message_check_limit)
+    return list(messages)  # type: ignore[no-any-return]
 
 
 def _poll_cycle(  # noqa: PLR0913

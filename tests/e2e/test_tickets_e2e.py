@@ -82,7 +82,7 @@ def _send_message_and_wait_for_response(
 
             # This is a new message that's not ours - likely the bot's response
             if len(msg.content.strip()) > 0:
-                return msg.content
+                return str(msg.content)
 
         # Wait a bit before checking again
         time.sleep(2)

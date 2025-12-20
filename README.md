@@ -325,9 +325,10 @@ All commands should be run from the project root with the virtual environment ac
 
     I'd recommend only running: `uv run pytest src/ tests/ -m "not local_credentials" -v` for simplicity.
 
-    The project uses a comprehensive testing strategy with different test categories.
+    The project uses a comprehensive testing strategy with different test categories:
     ```bash
     # Run all tests (includes unit, integration, and e2e tests)
+    # Note: Some tests may fail due to missing dependencies (task_client_adapter, respx)
     uv run pytest
 
     # Run only unit tests (fast, no external dependencies - from src/ directories)

@@ -4,7 +4,7 @@ from chat_api import Message
 from discord_api.message import Message as DiscordMessage
 
 
-class ChatMessage(Message):
+class ChatMessage(Message):  # type: ignore[misc]
     """Chat API message implementation that wraps a discord_api.Message."""
 
     def __init__(self, discord_message: DiscordMessage) -> None:
@@ -19,14 +19,14 @@ class ChatMessage(Message):
     @property
     def id(self) -> str:
         """Return the unique identifier of the message."""
-        return self._discord_message.id
+        return str(self._discord_message.id)
 
     @property
     def content(self) -> str:
         """Return the text content of the message."""
-        return self._discord_message.content
+        return str(self._discord_message.content)
 
     @property
     def sender_id(self) -> str:
         """Return the ID of the message author."""
-        return self._discord_message.sender_id
+        return str(self._discord_message.sender_id)

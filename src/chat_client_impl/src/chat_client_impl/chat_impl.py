@@ -7,7 +7,7 @@ from chat_api import ChatInterface, Message
 from chat_client_impl.message_impl import ChatMessage
 
 
-class ChatClient(ChatInterface):
+class ChatClient(ChatInterface):  # type: ignore[misc]
     """Chat API client implementation using Discord as the backend."""
 
     def __init__(
@@ -61,7 +61,8 @@ class ChatClient(ChatInterface):
             bool: True if the message was successfully sent, False otherwise.
 
         """
-        return self._discord_client.send_message(channel_id, content)
+        result = self._discord_client.send_message(channel_id, content)
+        return bool(result)
 
     def get_messages(self, channel_id: str, limit: int = 10) -> list[Message]:
         """Retrieve recent messages from a channel.
@@ -88,4 +89,5 @@ class ChatClient(ChatInterface):
             bool: True if the message was successfully deleted, False otherwise.
 
         """
-        return self._discord_client.delete_message(channel_id, message_id)
+        result = self._discord_client.delete_message(channel_id, message_id)
+        return bool(result)
