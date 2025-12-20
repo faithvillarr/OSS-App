@@ -76,7 +76,7 @@ async def get_client_for_user(guild_id: str) -> DiscordClient:
                             "No refresh token available to refresh credentials "
                             f"for guild {guild_id}"
                         )
-                        raise ValueError(msg)
+                        raise ValueError(msg)  # noqa: TRY301
 
                     # convert to str explicitly to satisfy the DiscordClient API contract
                     new_token_data = client._refresh_access_token(str(refresh_token))
@@ -87,9 +87,7 @@ async def get_client_for_user(guild_id: str) -> DiscordClient:
 
                     expires_at_val = new_token_data.get("expires_at")
                     expires_in_val = new_token_data.get("expires_in")
-                    expires_val = (
-                        expires_at_val if expires_at_val is not None else expires_in_val
-                    )
+                    expires_val = expires_at_val if expires_at_val is not None else expires_in_val
                     scope_val = new_token_data.get("scope", credentials.get("scope"))
 
                     # Persist refreshed tokens in credential store
@@ -144,9 +142,7 @@ async def get_bot_client_for_guild(guild_id: str) -> DiscordClient:
             access_token=credentials.get("access_token"), token_type=BOT_TOKEN_TYPE
         )
 
-    msg = (
-        "No bot token available for guild. Set DISCORD_BOT_TOKEN or install the bot to the guild."
-    )
+    msg = "No bot token available for guild. Set DISCORD_BOT_TOKEN or install the bot to the guild."
     raise ValueError(msg)
 
 
@@ -192,7 +188,7 @@ async def delete_user_credentials(guild_id: str) -> bool:
         True if credentials were deleted, False if not found.
 
     """
-    deleted = await delete_credential(guild_id)
+    deleted: bool = bool(await delete_credential(guild_id))
 
     if deleted:
         LOGGER.info("Deleted credentials for guild: %s", guild_id)

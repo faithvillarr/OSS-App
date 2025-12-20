@@ -3,30 +3,29 @@
 import logging
 import os
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any
+
+logger = logging.getLogger(__name__)
 
 try:
     from google.cloud import monitoring_v3
-    from google.api import metric_pb2
-    from google.api import monitored_resource_pb2
-    from google.protobuf.timestamp_pb2 import Timestamp
+
     MONITORING_AVAILABLE = True
 except ImportError:
     MONITORING_AVAILABLE = False
-    logging.warning("google-cloud-monitoring not available, telemetry disabled")
-
-logger = logging.getLogger(__name__)
+    logger.warning("google-cloud-monitoring not available, telemetry disabled")
 
 
 class Telemetry:
     """Telemetry client for Cloud Monitoring metrics."""
 
-    def __init__(self, project_id: str | None = None):
+    def __init__(self, project_id: str | None = None) -> None:
         """Initialize telemetry client.
 
         Args:
             project_id: GCP project ID. If None, will try to get from environment.
+
         """
         if not MONITORING_AVAILABLE:
             self.enabled = False
@@ -44,7 +43,7 @@ class Telemetry:
             self.project_name = f"projects/{self.project_id}"
             self.enabled = True
             logger.info("Telemetry initialized for project: %s", self.project_id)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self.enabled = False
             logger.warning("Telemetry disabled: failed to initialize client: %s", e)
 
@@ -60,6 +59,7 @@ class Telemetry:
             metric_type: The metric type (e.g., 'custom.googleapis.com/main_service/message_processing_duration')
             value: The metric value
             labels: Optional labels for the metric
+
         """
         if not self.enabled:
             return
@@ -67,12 +67,12 @@ class Telemetry:
         try:
             series = monitoring_v3.TimeSeries()
             series.metric.type = metric_type
-            
+
             # Set metric labels
             if labels:
                 for key, val in labels.items():
                     series.metric.labels[key] = str(val)
-            
+
             # Set resource (Cloud Run revision)
             series.resource.type = "cloud_run_revision"
             series.resource.labels["project_id"] = self.project_id
@@ -100,13 +100,13 @@ class Telemetry:
                 name=self.project_name,
                 time_series=[series],
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug("Failed to write metric %s: %s", metric_type, e)
 
     def record_message_processing(
         self,
         duration_seconds: float,
-        success: bool,
+        success: bool,  # noqa: FBT001
         error_type: str | None = None,
     ) -> None:
         """Record message processing metrics.
@@ -115,6 +115,7 @@ class Telemetry:
             duration_seconds: Time taken to process the message
             success: Whether processing was successful
             error_type: Type of error if processing failed
+
         """
         # Record duration
         self._create_time_series(
@@ -143,6 +144,7 @@ class Telemetry:
 
         Args:
             duration_seconds: Time taken for the poll cycle
+
         """
         self._create_time_series(
             "custom.googleapis.com/main_service/poll_cycle_duration",
@@ -154,7 +156,7 @@ class Telemetry:
         )
 
     @contextmanager
-    def measure_message_processing(self, error_type_map: dict[type[Exception], str] | None = None):
+    def measure_message_processing(self, error_type_map: dict[type[Exception], str] | None = None) -> Iterator[None]:
         """Context manager to measure message processing time and success/failure.
 
         Args:
@@ -162,6 +164,7 @@ class Telemetry:
 
         Yields:
             None
+
         """
         start_time = time.time()
         success = True
@@ -171,21 +174,19 @@ class Telemetry:
             yield
         except Exception as e:
             success = False
-            if error_type_map:
-                error_type = error_type_map.get(type(e), type(e).__name__)
-            else:
-                error_type = type(e).__name__
+            error_type = error_type_map.get(type(e), type(e).__name__) if error_type_map else type(e).__name__
             raise
         finally:
             duration = time.time() - start_time
             self.record_message_processing(duration, success, error_type)
 
     @contextmanager
-    def measure_poll_cycle(self):
+    def measure_poll_cycle(self) -> Iterator[None]:
         """Context manager to measure poll cycle duration.
 
         Yields:
             None
+
         """
         start_time = time.time()
         try:
@@ -204,8 +205,9 @@ def get_telemetry() -> Telemetry:
 
     Returns:
         Telemetry instance
+
     """
-    global _telemetry
+    global _telemetry  # noqa: PLW0603
     if _telemetry is None:
         _telemetry = Telemetry()
     return _telemetry
