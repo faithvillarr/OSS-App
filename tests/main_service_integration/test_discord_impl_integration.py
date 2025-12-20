@@ -279,9 +279,7 @@ class TestDiscordClientDirectMethods:
         # Mock HTTP 404 error
         mock_response = MagicMock()
         mock_response.status_code = 404
-        http_error = httpx.HTTPStatusError(
-            "Not Found", request=MagicMock(), response=mock_response
-        )
+        http_error = httpx.HTTPStatusError("Not Found", request=MagicMock(), response=mock_response)
 
         with (
             patch.object(client._http_client, "get", side_effect=http_error),
@@ -300,9 +298,7 @@ class TestDiscordClientDirectMethods:
         # Mock HTTP 500 error
         mock_response = MagicMock()
         mock_response.status_code = 500
-        http_error = httpx.HTTPStatusError(
-            "Internal Server Error", request=MagicMock(), response=mock_response
-        )
+        http_error = httpx.HTTPStatusError("Internal Server Error", request=MagicMock(), response=mock_response)
 
         with (
             patch.object(client._http_client, "get", side_effect=http_error),
@@ -374,9 +370,7 @@ class TestDiscordClientDirectMethods:
         mock_response.json.return_value = []
         mock_response.raise_for_status.return_value = None
 
-        with patch.object(
-            client._http_client, "get", return_value=mock_response
-        ) as mock_get:
+        with patch.object(client._http_client, "get", return_value=mock_response) as mock_get:
             client.get_messages("channel_123", limit=200)
 
             # Verify limit was capped at 100
@@ -394,9 +388,7 @@ class TestDiscordClientDirectMethods:
         # Mock HTTP error
         mock_response = MagicMock()
         mock_response.status_code = 500
-        http_error = httpx.HTTPStatusError(
-            "Internal Server Error", request=MagicMock(), response=mock_response
-        )
+        http_error = httpx.HTTPStatusError("Internal Server Error", request=MagicMock(), response=mock_response)
 
         with (
             patch.object(client._http_client, "get", side_effect=http_error),
@@ -414,9 +406,7 @@ class TestDiscordClientDirectMethods:
 
         # Mock generic exception
         with (
-            patch.object(
-                client._http_client, "get", side_effect=Exception("Network error")
-            ),
+            patch.object(client._http_client, "get", side_effect=Exception("Network error")),
             pytest.raises(ValueError, match=r".*"),
         ):
             client.get_messages("channel_123", limit=10)
@@ -488,9 +478,7 @@ class TestDiscordClientDirectMethods:
         # Mock HTTP error
         mock_response = MagicMock()
         mock_response.status_code = 403
-        http_error = httpx.HTTPStatusError(
-            "Forbidden", request=MagicMock(), response=mock_response
-        )
+        http_error = httpx.HTTPStatusError("Forbidden", request=MagicMock(), response=mock_response)
 
         with (
             patch.object(client._http_client, "post", side_effect=http_error),
@@ -527,9 +515,7 @@ class TestDiscordClientDirectMethods:
         # Mock HTTP 404 error
         mock_response = MagicMock()
         mock_response.status_code = 404
-        http_error = httpx.HTTPStatusError(
-            "Not Found", request=MagicMock(), response=mock_response
-        )
+        http_error = httpx.HTTPStatusError("Not Found", request=MagicMock(), response=mock_response)
 
         with (
             patch.object(client._http_client, "delete", side_effect=http_error),
@@ -548,9 +534,7 @@ class TestDiscordClientDirectMethods:
         # Mock HTTP 500 error
         mock_response = MagicMock()
         mock_response.status_code = 500
-        http_error = httpx.HTTPStatusError(
-            "Internal Server Error", request=MagicMock(), response=mock_response
-        )
+        http_error = httpx.HTTPStatusError("Internal Server Error", request=MagicMock(), response=mock_response)
 
         with (
             patch.object(client._http_client, "delete", side_effect=http_error),
@@ -610,9 +594,7 @@ class TestDiscordClientDirectMethods:
         # Mock HTTP error
         mock_response = MagicMock()
         mock_response.status_code = 500
-        http_error = httpx.HTTPStatusError(
-            "Internal Server Error", request=MagicMock(), response=mock_response
-        )
+        http_error = httpx.HTTPStatusError("Internal Server Error", request=MagicMock(), response=mock_response)
 
         with (
             patch.object(client._http_client, "get", side_effect=http_error),
@@ -630,9 +612,7 @@ class TestDiscordClientDirectMethods:
 
         # Mock generic exception
         with (
-            patch.object(
-                client._http_client, "get", side_effect=Exception("Network error")
-            ),
+            patch.object(client._http_client, "get", side_effect=Exception("Network error")),
             pytest.raises(ValueError, match=r".*"),
         ):
             list(client.get_channels())
@@ -671,9 +651,7 @@ class TestDiscordClientDirectMethods:
         # Mock HTTP 404 error
         mock_response = MagicMock()
         mock_response.status_code = 404
-        http_error = httpx.HTTPStatusError(
-            "Not Found", request=MagicMock(), response=mock_response
-        )
+        http_error = httpx.HTTPStatusError("Not Found", request=MagicMock(), response=mock_response)
 
         with (
             patch.object(client._http_client, "get", side_effect=http_error),
@@ -692,9 +670,7 @@ class TestDiscordClientDirectMethods:
         # Mock HTTP 500 error
         mock_response = MagicMock()
         mock_response.status_code = 500
-        http_error = httpx.HTTPStatusError(
-            "Internal Server Error", request=MagicMock(), response=mock_response
-        )
+        http_error = httpx.HTTPStatusError("Internal Server Error", request=MagicMock(), response=mock_response)
 
         with (
             patch.object(client._http_client, "get", side_effect=http_error),

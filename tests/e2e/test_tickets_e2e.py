@@ -54,9 +54,7 @@ def _send_message_and_wait_for_response(
 
     """
     # Get existing messages before sending (to track what's new)
-    messages_before = {
-        msg.id for msg in client.get_messages(channel_id=channel_id, limit=20)
-    }
+    messages_before = {msg.id for msg in client.get_messages(channel_id=channel_id, limit=20)}
 
     # Send message with E2E prefix
     full_message = f"{E2E_PREFIX}{message}"
@@ -113,9 +111,7 @@ def test_get_all_tickets_e2e(main_service: subprocess.Popen[str]) -> None:
 
     # Verify service is still running
     if main_service.poll() is not None:
-        pytest.fail(
-            f"Main service process died before test! Return code: {main_service.poll()}"
-        )
+        pytest.fail(f"Main service process died before test! Return code: {main_service.poll()}")
 
     # Get channel ID
     channel_id = _get_channel_id()
@@ -160,9 +156,7 @@ def test_get_open_tickets_e2e(main_service: subprocess.Popen[str]) -> None:
 
     # Verify service is still running
     if main_service.poll() is not None:
-        pytest.fail(
-            f"Main service process died before test! Return code: {main_service.poll()}"
-        )
+        pytest.fail(f"Main service process died before test! Return code: {main_service.poll()}")
 
     # Get channel ID
     channel_id = _get_channel_id()

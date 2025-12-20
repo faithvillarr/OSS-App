@@ -102,16 +102,12 @@ def _initialize_ticket_client() -> TicketsClient:
                 logger.warning("⚠ Ticket client initialized but no tasklists found")
         except Exception as e:  # noqa: BLE001
             logger.warning("⚠ Ticket client health check failed: %s", e)
-            logger.warning(
-                "  Continuing anyway - operations may fail if tasklists are needed"
-            )
+            logger.warning("  Continuing anyway - operations may fail if tasklists are needed")
 
         return ticket_client  # noqa: TRY300
     except Exception:
         logger.exception("✗ Failed to initialize ticket client")
-        logger.exception(
-            "  This is a critical error - the service cannot function without ticket client"
-        )
+        logger.exception("  This is a critical error - the service cannot function without ticket client")
         raise SystemExit(1) from None
 
 
@@ -156,21 +152,15 @@ def _initialize_ai_client() -> ai_api.AIInterface:
         return ai_client  # noqa: TRY300
     except NotImplementedError:
         logger.exception("✗ AI client not registered - no implementation found")
-        logger.exception(
-            "  Ensure an AI implementation (e.g., openai_impl) is imported"
-        )
+        logger.exception("  Ensure an AI implementation (e.g., openai_impl) is imported")
         raise SystemExit(1) from None
     except Exception:
         logger.exception("✗ Failed to initialize AI client")
-        logger.exception(
-            "  This is a critical error - the service cannot function without AI client"
-        )
+        logger.exception("  This is a critical error - the service cannot function without AI client")
         raise SystemExit(1) from None
 
 
-def _determine_bot_user_id(
-    client: chat_api.ChatInterface, channel_id: str
-) -> str | None:
+def _determine_bot_user_id(client: chat_api.ChatInterface, channel_id: str) -> str | None:
     """Determine the bot's user ID by sending a test message.
 
     Args:
@@ -196,13 +186,9 @@ def _determine_bot_user_id(
                     client.delete_message(channel_id=channel_id, message_id=msg.id)
                     break
         if not bot_user_id:
-            logger.warning(
-                "Could not determine bot user ID - will filter by message content instead"
-            )
+            logger.warning("Could not determine bot user ID - will filter by message content instead")
     except Exception:
-        logger.exception(
-            "Failed to determine bot user ID - will filter by message content instead"
-        )
+        logger.exception("Failed to determine bot user ID - will filter by message content instead")
 
     return bot_user_id
 
@@ -228,9 +214,7 @@ def _initialize_seen_messages(
     message_check_limit: Final[int] = 5
 
     try:
-        initial_messages = client.get_messages(
-            channel_id=channel_id, limit=message_check_limit
-        )
+        initial_messages = client.get_messages(channel_id=channel_id, limit=message_check_limit)
         for msg in initial_messages:
             seen_message_ids.add(msg.id)
         logger.info(
@@ -262,10 +246,7 @@ def _validate_new_message(
     """
     return (
         msg.id not in seen_message_ids
-        and (
-            (bot_user_id is None or msg.sender_id != bot_user_id)
-            or msg.content[: len(E2E_PREFIX)] == E2E_PREFIX
-        )
+        and ((bot_user_id is None or msg.sender_id != bot_user_id) or msg.content[: len(E2E_PREFIX)] == E2E_PREFIX)
         and msg.content != FIRST_MESSAGE_CONTENT
     )
 
@@ -286,11 +267,7 @@ def _filter_new_messages(
         List of new messages that should be processed.
 
     """
-    return [
-        msg
-        for msg in messages
-        if _validate_new_message(msg, seen_message_ids, bot_user_id)
-    ]
+    return [msg for msg in messages if _validate_new_message(msg, seen_message_ids, bot_user_id)]
 
 
 def _process_new_message(
@@ -532,9 +509,7 @@ def main() -> None:
         logger.info("✓ Chat client initialized successfully")
     except Exception:
         logger.exception("✗ Failed to initialize chat client")
-        logger.exception(
-            "  This is a critical error - the service cannot function without chat client"
-        )
+        logger.exception("  This is a critical error - the service cannot function without chat client")
         raise SystemExit(1) from None
 
     # Initialize ticket client (with error handling)
