@@ -419,44 +419,6 @@ jobs:
 
 # Orchestrate jobs using workflows
 workflows:
-  # Main workflow: Build, Lint, Test (runs on all branches)
-  build_and_test:
-    jobs:
-      # Build runs on all branches to support integration/e2e tests on all branches
-      - build
-      - lint:
-          requires:
-            - build
-
-      - unit_test:
-          requires:
-            - build
-
-      - circleci_test:
-          requires:
-            - unit_test # Run after unit tests pass
-
-      # Integration and e2e tests run on ALL branches
-      - integration_test:
-          requires:
-            - build # Run after build completes on all branches
-          context: gtask-client # Context containing Google Tasks API credentials
-          # Runs on all branches - tests will skip gracefully if credentials are not available
-
-      - e2e_test:
-          requires:
-            - build # Run after build completes on all branches
-          context: gtask-client # Context containing Google Tasks API credentials
-          # Runs on all branches - tests will skip gracefully if credentials are not available
-
-      # Optional: Report summary after core tests
-      - report_summary:
-          requires:
-            - unit_test
-            - circleci_test
-            - integration_test
-            - e2e_test
-
   # Enhanced workflow: Full tests with real credentials
   full_integration:
     jobs:
