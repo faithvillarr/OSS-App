@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any
 
 import ai_api
 import main_service.ticketing as ticketing_module
@@ -13,9 +13,6 @@ from main_service.prompts import (
     get_followup_command_prompt,
     get_response_generation_prompt,
 )
-
-if TYPE_CHECKING:
-    from tickets_api import TicketInterface
 
 logger = logging.getLogger(__name__)
 

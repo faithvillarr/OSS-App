@@ -121,7 +121,7 @@ def test_get_all_tickets_e2e(main_service: subprocess.Popen[str]) -> None:
     channel_id = _get_channel_id()
 
     # Initialize chat client
-    client = chat_api.get_client()
+    client = chat_api.get_client()  # type: ignore[attr-defined]
 
     # Send message asking for all tickets
     response = _send_message_and_wait_for_response(
@@ -168,7 +168,7 @@ def test_get_open_tickets_e2e(main_service: subprocess.Popen[str]) -> None:
     channel_id = _get_channel_id()
 
     # Initialize chat client
-    client = chat_api.get_client()
+    client = chat_api.get_client()  # type: ignore[attr-defined]
 
     # Send message asking for open tickets
     response = _send_message_and_wait_for_response(

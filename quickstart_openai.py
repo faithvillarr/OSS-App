@@ -50,10 +50,13 @@ def main() -> None:
         prompt,
         response_schema=schema,
     )
-    print(f"  Title: {structured.get('title', 'N/A')}")
-    print(f"  Genre: {structured.get('genre', 'N/A')}")
-    print(f"  Hero: {structured.get('protagonist', 'N/A')}")
-    print(f"  Conflict: {structured.get('conflict', 'N/A')}")
+    if isinstance(structured, dict):
+        print(f"  Title: {structured.get('title', 'N/A')}")
+        print(f"  Genre: {structured.get('genre', 'N/A')}")
+        print(f"  Hero: {structured.get('protagonist', 'N/A')}")
+        print(f"  Conflict: {structured.get('conflict', 'N/A')}")
+    else:
+        print(f"  Response: {structured}")
 
 
 if __name__ == "__main__":

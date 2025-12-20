@@ -57,7 +57,7 @@ def main() -> None:
     _require_env("DISCORD_BOT_TOKEN")
 
     logger.info("Creating ChatClient using bot token from DISCORD_BOT_TOKEN...")
-    client = chat_api.get_client()
+    client = chat_api.get_client()  # type: ignore[attr-defined]
 
     logger.info("=== Sending a test message to channel %s ===", channel_id)
     message_content = "Hello from discord_main.py demo!"

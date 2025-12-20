@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 # HTTP status code threshold for service readiness
 HTTP_SERVER_ERROR_THRESHOLD = 500
+# Maximum output size to read from service process (8KB)
+MAX_OUTPUT_SIZE = 8192
 
 
 def _free_port() -> int:
@@ -36,6 +38,123 @@ def _free_port() -> int:
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
         sock.bind(("", 0))
         return int(sock.getsockname()[1])
+
+
+def _raise_service_exit_error(returncode: int | None, output: str | None = None) -> None:
+    """Raise error for service process exit."""
+    if output:
+        error_msg = f"Service process exited immediately with code {returncode}. Output:\n{output}"
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+    error_msg = f"Service process exited immediately with code {returncode}"
+    raise RuntimeError(error_msg)
+
+
+def _setup_service_environment(port: int) -> dict[str, str]:
+    """Set up environment variables for the service.
+
+    Args:
+        port: Port number for the health check server.
+
+    Returns:
+        Environment dictionary for the service process.
+
+    """
+    env = os.environ.copy()
+    env["PORT"] = str(port)
+
+    # Set up PYTHONPATH to include all necessary source paths
+    src_paths = [
+        str(Path("src/main_service/src").resolve()),
+        str(Path("src/chat_api/src").resolve()),
+        str(Path("src/chat_client_impl/src").resolve()),
+        str(Path("src/discord_api/src").resolve()),
+        str(Path("src/discord_client_impl/src").resolve()),
+        str(Path("src/gtask_client_impl/src").resolve()),
+        str(Path("src/task_client_api/src").resolve()),
+        str(Path("src/tickets_api/src").resolve()),
+        str(Path("src/tickets_client_impl/src").resolve()),
+        str(Path("src/ai_api/src").resolve()),
+        str(Path("src/openai_impl/src").resolve()),
+    ]
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, (*src_paths, env.get("PYTHONPATH", ""))))
+    return env
+
+
+def _check_process_started(runner: subprocess.Popen[str]) -> None:
+    """Check if the service process started successfully.
+
+    Args:
+        runner: The process handle.
+
+    Raises:
+        RuntimeError: If the process exited immediately.
+
+    """
+    time.sleep(1)  # Give the process a moment to start up
+    returncode = runner.poll()
+    if returncode is not None:
+        # Process died, read output
+        output = None
+        if runner.stdout:
+            try:
+                output = runner.stdout.read()
+            except (OSError, ValueError) as e:
+                logger.debug("Error reading service output: %s", e)
+        _raise_service_exit_error(returncode, output)
+
+
+def _read_service_output(runner: subprocess.Popen[str]) -> str:
+    """Read output from the service process.
+
+    Args:
+        runner: The process handle.
+
+    Returns:
+        Output string, truncated if too long.
+
+    """
+    output = ""
+    try:
+        time.sleep(0.5)  # Small delay to allow output to be buffered
+        # Read in chunks to avoid blocking
+        while True:
+            chunk = runner.stdout.read(1024) if runner.stdout else ""
+            if not chunk:
+                break
+            output += chunk
+            if len(output) > MAX_OUTPUT_SIZE:
+                output += "\n... (truncated)"
+                break
+    except (OSError, ValueError) as read_err:
+        logger.debug("Error reading service output: %s", read_err)
+    return output
+
+
+def _cleanup_failed_service(runner: subprocess.Popen[str], error: Exception) -> None:
+    """Clean up a service that failed to start.
+
+    Args:
+        runner: The process handle.
+        error: The error that occurred.
+
+    Raises:
+        RuntimeError: Always raises with the original error.
+
+    """
+    returncode = runner.poll()
+    if runner.stdout:
+        try:
+            output = _read_service_output(runner)
+            if output:
+                logger.exception("Service startup failed (exit code: %s). Output:\n%s", returncode, output)
+        except (OSError, ValueError) as read_error:
+            logger.debug("Error reading service output: %s", read_error)
+    if returncode is None:
+        logger.warning("Service process still running (PID: %s) but not ready", runner.pid)
+    runner.kill()
+    error_msg = f"Failed to start service: {error}"
+    raise RuntimeError(error_msg) from error
 
 
 def _wait_for_service_ready(port: int, timeout_s: int = 45) -> None:
@@ -83,26 +202,7 @@ def main_service() -> Generator[subprocess.Popen[str], None, None]:
     port = _free_port()
 
     # Set up environment variables
-    env = os.environ.copy()
-
-    # Set the PORT environment variable for the health check server
-    env["PORT"] = str(port)
-
-    # Set up PYTHONPATH to include all necessary source paths
-    src_paths = [
-        str(Path("src/main_service/src").resolve()),
-        str(Path("src/chat_api/src").resolve()),
-        str(Path("src/chat_client_impl/src").resolve()),
-        str(Path("src/discord_api/src").resolve()),
-        str(Path("src/discord_client_impl/src").resolve()),
-        str(Path("src/gtask_client_impl/src").resolve()),
-        str(Path("src/task_client_api/src").resolve()),
-        str(Path("src/tickets_api/src").resolve()),
-        str(Path("src/tickets_client_impl/src").resolve()),
-        str(Path("src/ai_api/src").resolve()),
-        str(Path("src/openai_impl/src").resolve()),
-    ]
-    env["PYTHONPATH"] = os.pathsep.join(filter(None, (*src_paths, env.get("PYTHONPATH", ""))))
+    env = _setup_service_environment(port)
 
     # Command to start the main service
     cmd = [
@@ -123,57 +223,17 @@ def main_service() -> Generator[subprocess.Popen[str], None, None]:
     )
 
     try:
-        # Give the process a moment to start up before checking health
-        time.sleep(1)
-        
-        # Check if process died immediately
-        returncode = runner.poll()
-        if returncode is not None:
-            # Process died, read output
-            if runner.stdout:
-                try:
-                    output = runner.stdout.read()
-                    if output:
-                        error_msg = f"Service process exited immediately with code {returncode}. Output:\n{output}"
-                        logger.error(error_msg)
-                        raise RuntimeError(error_msg)
-                except (OSError, ValueError) as e:
-                    logger.debug("Error reading service output: %s", e)
-            raise RuntimeError(f"Service process exited immediately with code {returncode}")
-        
+        # Check if process started successfully
+        _check_process_started(runner)
+
         # Wait for the service to be ready
         _wait_for_service_ready(port, timeout_s=60)  # Increased timeout for slower CI environments
         # Give the service a moment to fully initialize (message tracking, etc.)
         time.sleep(2)
-    except Exception as e:
+    except (RuntimeError, OSError, ValueError) as e:
         # If service fails to start, clean up and re-raise
-        returncode = runner.poll()
-        if runner.stdout:
-            try:
-                # Small delay to allow output to be buffered
-                time.sleep(0.5)
-                # Try to read available output (non-blocking read)
-                output = ""
-                try:
-                    # Read in chunks to avoid blocking
-                    while True:
-                        chunk = runner.stdout.read(1024)
-                        if not chunk:
-                            break
-                        output += chunk
-                        if len(output) > 8192:  # Limit to 8KB
-                            output += "\n... (truncated)"
-                            break
-                except Exception:
-                    pass  # Ignore read errors
-                if output:
-                    logger.error("Service startup failed (exit code: %s). Output:\n%s", returncode, output)
-            except Exception as read_error:
-                logger.debug("Error reading service output: %s", read_error)
-        if returncode is None:
-            logger.warning("Service process still running (PID: %s) but not ready", runner.pid)
-        runner.kill()
-        raise RuntimeError(f"Failed to start service: {e}") from e
+        # These are the expected exceptions from process startup and health checks
+        _cleanup_failed_service(runner, e)
 
     try:
         yield runner

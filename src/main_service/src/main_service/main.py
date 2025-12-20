@@ -115,7 +115,19 @@ def _initialize_ticket_client() -> TicketsClient:
         raise SystemExit(1) from None
 
 
-def _initialize_ai_client() -> ai_api.AIInterface:  # noqa: C901, PLR0915
+def _raise_missing_ai_method() -> None:
+    """Raise error for missing AI method."""
+    msg = "AI client missing 'generate_response' method"
+    raise AttributeError(msg)
+
+
+def _raise_not_callable_ai_method() -> None:
+    """Raise error for non-callable AI method."""
+    msg = "AI client 'generate_response' is not callable"
+    raise TypeError(msg)
+
+
+def _initialize_ai_client() -> ai_api.AIInterface:
     """Initialize and validate the AI client with error handling and logging.
 
     Returns:
@@ -131,85 +143,11 @@ def _initialize_ai_client() -> ai_api.AIInterface:  # noqa: C901, PLR0915
         logger.info("✓ AI client retrieved successfully")
 
         # Verify the client has the required interface (health check)
-        def _validate_ai_client() -> None:  # noqa: C901
-            """Validate AI client interface."""
-
-            def _check_method_exists() -> None:
-                """Check if method exists."""
-                if not hasattr(ai_client, "generate_response"):
-
-                    def _raise_missing() -> None:
-                        """Raise error for missing method."""
-
-                        def _do_raise() -> None:
-                            """Perform the raise."""
-
-                            def _perform_raise() -> None:
-                                """Actually perform the raise."""
-
-                                def _execute_raise() -> None:
-                                    """Execute the raise."""
-
-                                    def _final_raise() -> None:
-                                        """Execute the final raise."""
-                                        missing_method_msg = "AI client missing 'generate_response' method"
-                                        raise AttributeError(
-                                            missing_method_msg
-                                        )  # noqa: TRY301
-
-                                    _final_raise()
-
-                                _execute_raise()
-
-                            _perform_raise()
-
-                        _do_raise()
-
-                    _raise_missing()
-
-            def _check_method_callable() -> None:
-                """Check if method is callable."""
-                if not callable(getattr(ai_client, "generate_response", None)):
-
-                    def _raise_not_callable() -> None:
-                        """Raise error for non-callable method."""
-
-                        def _do_raise() -> None:
-                            """Perform the raise."""
-
-                            def _perform_raise() -> None:
-                                """Actually perform the raise."""
-
-                                def _execute_raise() -> None:
-                                    """Execute the raise."""
-
-                                    def _final_raise() -> None:
-                                        """Execute the final raise."""
-                                        not_callable_msg = "AI client 'generate_response' is not callable"
-                                        raise TypeError(
-                                            not_callable_msg
-                                        )  # noqa: TRY301
-
-                                    _final_raise()
-
-                                _execute_raise()
-
-                            _perform_raise()
-
-                        _do_raise()
-
-                    _raise_not_callable()
-
-            _check_method_exists()
-            _check_method_callable()
-
         try:
             if not hasattr(ai_client, "generate_response"):
-                msg = "AI client missing 'generate_response' method"
-                raise AttributeError(msg)  # noqa: TRY301
+                _raise_missing_ai_method()
             if not callable(getattr(ai_client, "generate_response", None)):
-                msg = "AI client 'generate_response' is not callable"
-                raise TypeError(msg)  # noqa: TRY301
+                _raise_not_callable_ai_method()
             logger.info("✓ AI client health check passed: interface validated")
         except Exception as e:  # noqa: BLE001
             logger.warning("⚠ AI client health check failed: %s", e)
@@ -355,7 +293,7 @@ def _filter_new_messages(
     ]
 
 
-def _process_new_message(  # noqa: C901
+def _process_new_message(
     client: chat_api.ChatInterface,
     msg: chat_api.Message,
     channel_id: str,

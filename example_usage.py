@@ -8,7 +8,7 @@ When run without authentication, operations will fail as expected.
 """
 
 import httpx
-from slack_adapter import SlackServiceBackedClient
+from slack_adapter import SlackServiceBackedClient  # type: ignore[import-not-found]
 
 from chat_api import ChatInterface, Message
 
@@ -170,11 +170,10 @@ class SlackChatAdapter(ChatInterface):
                 path=f"/channels/{channel_id}/messages/{message_id}",
             )
             # 204 No Content indicates success
-            return resp.status_code == 204
+            status_code: int = resp.status_code  # type: ignore[assignment]
+            return status_code == http_no_content
         except Exception:
             return False
-        else:
-            return resp.status_code == http_no_content
 
     def close(self) -> None:
         """Close the underlying HTTP client."""
