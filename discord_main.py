@@ -19,9 +19,8 @@ from typing import Final
 
 from dotenv import load_dotenv
 
-import chat_client_impl  # noqa: F401
 import chat_api
-
+import chat_client_impl  # noqa: F401
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -48,10 +47,7 @@ def main() -> None:
     channel_id: Final[str] = os.getenv("DISCORD_CHANNEL_ID", "")
 
     if not guild_id or not channel_id:
-        logger.error(
-            "Please set DISCORD_GUILD_ID and DISCORD_CHANNEL_ID in your environment "
-            "before running this script."
-        )
+        logger.error("Please set DISCORD_GUILD_ID and DISCORD_CHANNEL_ID in your environment before running this script.")
         logger.info("Example:")
         logger.info("  export DISCORD_GUILD_ID='your_guild_id'")
         logger.info("  export DISCORD_CHANNEL_ID='your_channel_id'")

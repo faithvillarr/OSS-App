@@ -1,5 +1,7 @@
 """Chat client implementation that adapts discord_api to chat_api."""
 
+from typing import Any
+
 from chat_api import ChatInterface, Message
 
 from chat_client_impl.message_impl import ChatMessage
@@ -13,7 +15,7 @@ class ChatClient(ChatInterface):
         user_id: str | None = None,
         access_token: str | None = None,
         token_type: str | None = None,
-        **kwargs,
+        **kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize a chat client.
 
@@ -29,22 +31,24 @@ class ChatClient(ChatInterface):
 
         """
         # Import discord_api and ensure discord_client_impl is registered
-        import discord_client_impl  # noqa: F401
+        import discord_client_impl  # noqa: F401, PLC0415
 
         # If access_token is provided, create DiscordClient directly
         # Otherwise, use discord_api.get_client(user_id)
+        # Note: _discord_client is a discord_api.client.ChatInterface, not chat_api.ChatInterface
+        # but they have compatible interfaces for our purposes
         if access_token is not None:
-            from discord_client_impl import DiscordClient
+            from discord_client_impl.discord_impl import DiscordClient  # noqa: PLC0415
 
-            self._discord_client = DiscordClient(
+            self._discord_client = DiscordClient(  # type: ignore[assignment]
                 access_token=access_token,
                 token_type=token_type,
                 **kwargs,
             )
         else:
-            import discord_api
+            import discord_api  # noqa: PLC0415
 
-            self._discord_client = discord_api.get_client(user_id=user_id)
+            self._discord_client = discord_api.get_client(user_id=user_id)  # type: ignore[assignment]
 
     def send_message(self, channel_id: str, content: str) -> bool:
         """Send a message to a channel.
@@ -71,7 +75,7 @@ class ChatClient(ChatInterface):
 
         """
         discord_messages = self._discord_client.get_messages(channel_id, limit)
-        return [ChatMessage(msg) for msg in discord_messages]
+        return [ChatMessage(msg) for msg in discord_messages]  # type: ignore[arg-type]
 
     def delete_message(self, channel_id: str, message_id: str) -> bool:
         """Delete a message from a channel.

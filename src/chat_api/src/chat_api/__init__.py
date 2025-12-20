@@ -27,6 +27,7 @@ class Message(ABC):
         """The ID of the user who sent the message."""
         raise NotImplementedError
 
+
 class ChatInterface(ABC):
     """A minimal interface for sending and receiving messages."""
 

@@ -22,8 +22,13 @@ dev = [
     "pymdown-extensions>=10.16.1",
     "pytest>=8.4.1",
     "pytest-cov>=6.2.1",
+    "pytest-mock>=3.10.0",
     "ruff>=0.12.7",
     "types-requests>=2.32.4.20250611",
+]
+test = [
+    "pytest-mock>=3.10.0",
+    "respx>=0.20.2",  # HTTP mocking for httpx (used by discord_client_impl tests)
 ]
 
 [tool.uv.workspace]
@@ -64,32 +69,31 @@ ignore = [
     "PLC0415", "ERA001"
 ]
 "**/tests/conftest.py" = ["INP001"]  # Adding __init__.py causes pytest namespace conflicts with --import-mode=importlib
+"example_usage.py" = ["SLF001", "TRY300", "BLE001", "T201", "D401", "ANN204", "PLR2004", "S110"]
+"quickstart_openai.py" = ["T201", "D401"]
+"discord_main.py" = ["T201"]
 
 [tool.mypy]
 strict = true
 explicit_package_bases = true # Required for src layout
-
-
-mypy_path = [
-  "src/main_service",
-
-  # Ticketing Directories
-  "src/gtask_client_impl",
-  "src/task_client_api",
-  "src/tickets_api",
-  "src/tickets_client_impl",
-
-  # Chat Directories
-  "src/discord_api",
-  "src/discord_client_impl",
-  "src/chat_api",
-  "src/chat_client_impl",
-
-  # AI Directories
-  "src/ai_api",
-  "src/openai_impl",
+exclude = [
+  "src/.*/tests/.*",  # Exclude test directories within src to avoid duplicate module names
 ]
-
+# Packages are structured as src/<package>/src/<package>/, so we need to add src/<package>/src to the path
+# to find the actual package modules when imports use "from <package> import ..."
+mypy_path = [
+  "src/main_service/src",
+  "src/gtask_client_impl/src",
+  "src/task_client_api/src",
+  "src/tickets_api/src",
+  "src/tickets_client_impl/src",
+  "src/discord_api/src",
+  "src/discord_client_impl/src",
+  "src/chat_api/src",
+  "src/chat_client_impl/src",
+  "src/ai_api/src",
+  "src/openai_impl/src",
+]
 ignore_missing_imports = false
 warn_unused_ignores = false
 
@@ -99,6 +103,9 @@ module = [
     "google.*",
     "googleapiclient.*",
     "google_auth_oauthlib.*",
+    "authlib.*",
+    "discord_client_service.*",
+    "opentelemetry.*",
 ]
 ignore_missing_imports = true
 
