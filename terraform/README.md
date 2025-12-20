@@ -2,9 +2,43 @@
 
 This directory contains Terraform configuration for deploying the main_service Discord polling service to Google Cloud Run with Secret Manager integration and Cloud Monitoring telemetry.
 
-**For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)**
+## Quick Start: Automated Deployment
 
-## Prerequisites
+**The recommended way to deploy is using the automated deployment script:**
+
+1. **Configure Terraform variables:**
+   ```bash
+   cd terraform
+   cp terraform.tfvars.example terraform.tfvars
+   ```
+
+2. **Edit `terraform.tfvars`** and fill in all required values (see [Configuration](#configuration) below)
+
+3. **Run the deployment script from the project root:**
+   ```bash
+   ./deploy.sh
+   ```
+
+   The script automates:
+   - Prerequisite checks (gcloud, docker, terraform)
+   - GCP API enabling
+   - Secret Manager secret creation
+   - Docker image building and pushing
+   - Terraform initialization and deployment
+
+4. **Get the service URL:**
+   ```bash
+   cd terraform
+   terraform output service_url
+   ```
+
+For detailed information about the deployment script, see the [root README.md](../README.md#deployment).
+
+## Manual Deployment
+
+If you prefer to deploy manually or need more control:
+
+### Prerequisites
 
 1. Google Cloud Project with billing enabled
 2. Required APIs enabled:
@@ -14,93 +48,101 @@ This directory contains Terraform configuration for deploying the main_service D
    - Container Registry API (or Artifact Registry API)
 3. Terraform >= 1.0 installed
 4. Google Cloud SDK (`gcloud`) installed and authenticated
-5. Docker image built and pushed to Google Container Registry or Artifact Registry
+5. Docker installed and running
 
-## Setup
+### Configuration
 
-1. **Configure Terraform variables:**
+1. **Copy the example variables file:**
+   ```bash
+   cd terraform
+   cp terraform.tfvars.example terraform.tfvars
+   ```
 
-   Create a `terraform.tfvars` file (or use environment variables):
+2. **Edit `terraform.tfvars`** and fill in all required values:
 
    ```hcl
    project_id = "your-gcp-project-id"
    region     = "us-central1"
-   service_name = "main-service"
    image      = "gcr.io/your-project-id/main-service:latest"
    
-   # Google Tasks OAuth credentials
-   tasks_client_id     = "your-client-id"
+   # Google Tasks OAuth credentials (REQUIRED)
+   tasks_client_id     = "your-client-id.apps.googleusercontent.com"
    tasks_client_secret = "your-client-secret"
    tasks_refresh_token = "your-refresh-token"
    
-   # Secret Manager configuration
-   create_secrets = false  # Set to true if Terraform should create secrets
-   discord_bot_token_secret_name = "discord-bot-token"
-   discord_channel_id_secret_name = "discord-channel-id"
+   # OpenAI API key (REQUIRED)
+   openai_api_key = "your-openai-api-key-here"
    
-   # Service configuration
-   min_instances = 1  # Required for long-running polling service
+   # Optional: Service configuration
+   # service_name         = "main-service"
+   # min_instances        = 1
+   # max_instances        = 10
    ```
 
-2. **Initialize Terraform:**
+   **Important**: You must fill in all the required values before deploying. The deployment will fail if any required variables are missing.
 
+3. **Set up Secret Manager secrets** (if not using `deploy.sh`):
+   ```bash
+   # Discord bot token
+   echo -n "your-discord-bot-token" | gcloud secrets create discord-bot-token \
+     --data-file=- --project=your-project-id
+   
+   # Discord channel ID
+   echo -n "your-discord-channel-id" | gcloud secrets create discord-channel-id \
+     --data-file=- --project=your-project-id
+   ```
+
+4. **Build and push Docker image:**
+   ```bash
+   # From project root
+   docker build --platform linux/amd64 -t gcr.io/YOUR_PROJECT_ID/main-service:latest .
+   gcloud auth configure-docker
+   docker push gcr.io/YOUR_PROJECT_ID/main-service:latest
+   ```
+
+5. **Initialize Terraform:**
    ```bash
    cd terraform
    terraform init
    ```
 
-3. **Review the deployment plan:**
-
+6. **Review the deployment plan:**
    ```bash
    terraform plan
    ```
 
-4. **Deploy the service:**
-
+7. **Deploy the service:**
    ```bash
    terraform apply
    ```
 
-5. **Get the service URL:**
-
+8. **Get the service URL:**
    ```bash
    terraform output service_url
    ```
-
-## Building and Pushing Docker Image
-
-Use the provided build script:
-
-```bash
-./build-and-push.sh
-```
-
-Or manually:
-
-```bash
-# Build the image
-docker build -t gcr.io/YOUR_PROJECT_ID/main-service:latest .
-
-# Push to Google Container Registry
-docker push gcr.io/YOUR_PROJECT_ID/main-service:latest
-```
 
 ## Variables
 
 See `variables.tf` for all available variables. Key variables:
 
-- `project_id` (required): GCP Project ID
-- `image` (required): Container image URL
-- `region` (optional): GCP region (default: us-central1)
-- `service_name` (optional): Cloud Run service name (default: main-service)
-- `tasks_client_id` (required): Google Tasks OAuth Client ID
-- `tasks_client_secret` (required): Google Tasks OAuth Client Secret
-- `tasks_refresh_token` (required): Google Tasks OAuth Refresh Token
-- `discord_bot_token_secret_name` (optional): Secret Manager secret name for Discord bot token (default: discord-bot-token)
-- `discord_channel_id_secret_name` (optional): Secret Manager secret name for Discord channel ID (default: discord-channel-id)
-- `create_secrets` (optional): Whether Terraform should create secrets (default: false)
-- `min_instances` (optional): Minimum instances (default: 1 for polling service)
-- `max_instances` (optional): Maximum instances (default: 10)
+### Required Variables
+
+- **`project_id`**: GCP Project ID
+- **`image`**: Container image URL (e.g., `gcr.io/your-project-id/main-service:latest`)
+- **`tasks_client_id`**: Google Tasks OAuth Client ID (format: `xxx.apps.googleusercontent.com`)
+- **`tasks_client_secret`**: Google Tasks OAuth Client Secret
+- **`tasks_refresh_token`**: Google Tasks OAuth Refresh Token
+- **`openai_api_key`**: OpenAI API key for AI operations
+
+### Optional Variables
+
+- **`region`**: GCP region (default: `us-central1`)
+- **`service_name`**: Cloud Run service name (default: `main-service`)
+- **`min_instances`**: Minimum instances (default: `1` - required for polling service)
+- **`max_instances`**: Maximum instances (default: `10`)
+- **`discord_bot_token_secret_name`**: Secret Manager secret name for Discord bot token (default: `discord-bot-token`)
+- **`discord_channel_id_secret_name`**: Secret Manager secret name for Discord channel ID (default: `discord-channel-id`)
+- **`create_secrets`**: Whether Terraform should create secrets (default: `false` - use `deploy.sh` instead)
 
 ## Outputs
 
@@ -156,17 +198,64 @@ Metrics are automatically sent to Cloud Monitoring. See [DEPLOYMENT.md](./DEPLOY
 
 Discord credentials are stored in Secret Manager and automatically injected as environment variables:
 
-- `DISCORD_BOT_TOKEN`: From Secret Manager secret
-- `DISCORD_CHANNEL_ID`: From Secret Manager secret
+- `DISCORD_BOT_TOKEN`: From Secret Manager secret (name: `discord-bot-token` by default)
+- `DISCORD_CHANNEL_ID`: From Secret Manager secret (name: `discord-channel-id` by default)
 
-The service account is automatically granted Secret Manager access. See [DEPLOYMENT.md](./DEPLOYMENT.md) for secret setup instructions.
+The service account is automatically granted Secret Manager access.
 
-## Notes
+**Setting up secrets:**
 
-- The service is a long-running polling service (not HTTP-based)
-- Minimum instances is set to 1 to ensure continuous polling
-- Environment variables are set securely via Secret Manager
-- Session secret is auto-generated if not provided
-- A dedicated service account is created for service identity (recommended security practice)
-- Telemetry is automatically enabled when running on Cloud Run
+If using `deploy.sh`, secrets are created automatically. If deploying manually:
+
+```bash
+# Discord bot token
+echo -n "your-discord-bot-token" | gcloud secrets create discord-bot-token \
+  --data-file=- --project=your-project-id \
+  --replication-policy=automatic
+
+# Discord channel ID
+echo -n "your-discord-channel-id" | gcloud secrets create discord-channel-id \
+  --data-file=- --project=your-project-id \
+  --replication-policy=automatic
+```
+
+**Updating secrets:**
+
+```bash
+# Update Discord bot token
+echo -n "new-token" | gcloud secrets versions add discord-bot-token \
+  --data-file=- --project=your-project-id
+
+# Update Discord channel ID
+echo -n "new-channel-id" | gcloud secrets versions add discord-channel-id \
+  --data-file=- --project=your-project-id
+```
+
+## Important Notes
+
+- **The service is a long-running polling service** (not HTTP-based), so `min_instances` is set to 1 to ensure continuous polling
+- **Environment variables are set securely via Secret Manager** - never hardcode secrets in Terraform variables
+- **A dedicated service account is created** for service identity (recommended security practice)
+- **Telemetry is automatically enabled** when running on Cloud Run via OpenTelemetry Collector sidecar
+- **The `deploy.sh` script** handles most of the setup automatically - use it unless you need manual control
+
+## Troubleshooting
+
+### Terraform apply fails with "variable not set"
+
+Ensure you've copied `terraform.tfvars.example` to `terraform.tfvars` and filled in all required values.
+
+### Docker image not found
+
+Ensure you've built and pushed the Docker image before running `terraform apply`. The `deploy.sh` script handles this automatically.
+
+### Secret Manager access denied
+
+Ensure the service account has the `roles/secretmanager.secretAccessor` role. This is automatically granted by the Terraform configuration.
+
+### Service not polling
+
+- Check that `min_instances` is set to at least 1
+- Verify Discord credentials in Secret Manager are correct
+- Check Cloud Run logs: `gcloud run services logs read main-service --region=us-central1`
 
