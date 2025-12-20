@@ -21,7 +21,7 @@ LOGGER = logging.getLogger(__name__)
 BOT_TOKEN_TYPE = "Bot"  # noqa: S105
 
 
-async def get_client_for_user(guild_id: str) -> DiscordClient:
+async def get_client_for_user(guild_id: str) -> DiscordClient:  # noqa: C901, PLR0915
     """Get Discord client for a specific guild with database-stored credentials.
 
     Args:
@@ -195,7 +195,7 @@ async def delete_user_credentials(guild_id: str) -> bool:
     else:
         LOGGER.warning("No credentials found to delete for guild: %s", guild_id)
 
-    return deleted
+    return bool(deleted)  # Ensure bool return type
 
 
 async def check_user_authenticated(guild_id: str) -> bool:

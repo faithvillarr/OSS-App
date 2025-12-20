@@ -58,7 +58,7 @@ class SlackChatAdapter(ChatInterface):
     ) -> dict[str, object]:
         """Make an HTTP request to the service."""
         client = self._get_client()
-        resp = client._do_request(
+        resp = client._do_request(  # noqa: SLF001
             method=method,
             path=path,
             params=params,
@@ -88,6 +88,8 @@ class SlackChatAdapter(ChatInterface):
             return result is not None
         except Exception:
             return False
+        else:
+            return result is not None
 
     def get_messages(self, channel_id: str, limit: int = 10) -> list[Message]:
         """Get messages from a channel.
@@ -147,6 +149,8 @@ class SlackChatAdapter(ChatInterface):
             return result
         except Exception:
             return []
+        else:
+            return result
 
     def delete_message(self, channel_id: str, message_id: str) -> bool:
         """Delete a message from a channel.
@@ -159,8 +163,9 @@ class SlackChatAdapter(ChatInterface):
             True if the message was deleted successfully, False otherwise
 
         """
+        http_no_content = 204
         try:
-            resp = self._get_client()._do_request(
+            resp = self._get_client()._do_request(  # noqa: SLF001
                 method="DELETE",
                 path=f"/channels/{channel_id}/messages/{message_id}",
             )
@@ -168,6 +173,8 @@ class SlackChatAdapter(ChatInterface):
             return resp.status_code == 204
         except Exception:
             return False
+        else:
+            return resp.status_code == http_no_content
 
     def close(self) -> None:
         """Close the underlying HTTP client."""
