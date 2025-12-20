@@ -123,26 +123,57 @@ def main_service() -> Generator[subprocess.Popen[str], None, None]:
     )
 
     try:
+        # Give the process a moment to start up before checking health
+        time.sleep(1)
+        
+        # Check if process died immediately
+        returncode = runner.poll()
+        if returncode is not None:
+            # Process died, read output
+            if runner.stdout:
+                try:
+                    output = runner.stdout.read()
+                    if output:
+                        error_msg = f"Service process exited immediately with code {returncode}. Output:\n{output}"
+                        logger.error(error_msg)
+                        raise RuntimeError(error_msg)
+                except (OSError, ValueError) as e:
+                    logger.debug("Error reading service output: %s", e)
+            raise RuntimeError(f"Service process exited immediately with code {returncode}")
+        
         # Wait for the service to be ready
-        _wait_for_service_ready(port)
+        _wait_for_service_ready(port, timeout_s=60)  # Increased timeout for slower CI environments
         # Give the service a moment to fully initialize (message tracking, etc.)
         time.sleep(2)
-    except Exception:
+    except Exception as e:
         # If service fails to start, clean up and re-raise
         returncode = runner.poll()
         if runner.stdout:
             try:
                 # Small delay to allow output to be buffered
                 time.sleep(0.5)
-                output = runner.stdout.read()
+                # Try to read available output (non-blocking read)
+                output = ""
+                try:
+                    # Read in chunks to avoid blocking
+                    while True:
+                        chunk = runner.stdout.read(1024)
+                        if not chunk:
+                            break
+                        output += chunk
+                        if len(output) > 8192:  # Limit to 8KB
+                            output += "\n... (truncated)"
+                            break
+                except Exception:
+                    pass  # Ignore read errors
                 if output:
-                    logger.exception("Service startup failed (exit code: %s). Output:\n%s", returncode, output)
-            except (OSError, ValueError) as e:
-                logger.debug("Error reading service output: %s", e)
+                    logger.error("Service startup failed (exit code: %s). Output:\n%s", returncode, output)
+            except Exception as read_error:
+                logger.debug("Error reading service output: %s", read_error)
         if returncode is None:
             logger.warning("Service process still running (PID: %s) but not ready", runner.pid)
         runner.kill()
-        raise
+        raise RuntimeError(f"Failed to start service: {e}") from e
 
     try:
         yield runner

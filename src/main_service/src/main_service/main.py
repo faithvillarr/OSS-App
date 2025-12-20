@@ -94,17 +94,24 @@ def _initialize_ticket_client() -> TicketsClient:
         try:
             tasklists = ticket_client._gtask_client.list_tasklists()  # noqa: SLF001
             if tasklists:
-                logger.info("✓ Ticket client health check passed: %d tasklist(s) available", len(tasklists))
+                logger.info(
+                    "✓ Ticket client health check passed: %d tasklist(s) available",
+                    len(tasklists),
+                )
             else:
                 logger.warning("⚠ Ticket client initialized but no tasklists found")
         except Exception as e:  # noqa: BLE001
             logger.warning("⚠ Ticket client health check failed: %s", e)
-            logger.warning("  Continuing anyway - operations may fail if tasklists are needed")
+            logger.warning(
+                "  Continuing anyway - operations may fail if tasklists are needed"
+            )
 
         return ticket_client  # noqa: TRY300
     except Exception:
         logger.exception("✗ Failed to initialize ticket client")
-        logger.exception("  This is a critical error - the service cannot function without ticket client")
+        logger.exception(
+            "  This is a critical error - the service cannot function without ticket client"
+        )
         raise SystemExit(1) from None
 
 
@@ -126,46 +133,71 @@ def _initialize_ai_client() -> ai_api.AIInterface:  # noqa: C901, PLR0915
         # Verify the client has the required interface (health check)
         def _validate_ai_client() -> None:  # noqa: C901
             """Validate AI client interface."""
+
             def _check_method_exists() -> None:
                 """Check if method exists."""
                 if not hasattr(ai_client, "generate_response"):
+
                     def _raise_missing() -> None:
                         """Raise error for missing method."""
+
                         def _do_raise() -> None:
                             """Perform the raise."""
+
                             def _perform_raise() -> None:
                                 """Actually perform the raise."""
+
                                 def _execute_raise() -> None:
                                     """Execute the raise."""
+
                                     def _final_raise() -> None:
                                         """Execute the final raise."""
                                         missing_method_msg = "AI client missing 'generate_response' method"
-                                        raise AttributeError(missing_method_msg)  # noqa: TRY301
+                                        raise AttributeError(
+                                            missing_method_msg
+                                        )  # noqa: TRY301
+
                                     _final_raise()
+
                                 _execute_raise()
+
                             _perform_raise()
+
                         _do_raise()
+
                     _raise_missing()
 
             def _check_method_callable() -> None:
                 """Check if method is callable."""
                 if not callable(getattr(ai_client, "generate_response", None)):
+
                     def _raise_not_callable() -> None:
                         """Raise error for non-callable method."""
+
                         def _do_raise() -> None:
                             """Perform the raise."""
+
                             def _perform_raise() -> None:
                                 """Actually perform the raise."""
+
                                 def _execute_raise() -> None:
                                     """Execute the raise."""
+
                                     def _final_raise() -> None:
                                         """Execute the final raise."""
                                         not_callable_msg = "AI client 'generate_response' is not callable"
-                                        raise TypeError(not_callable_msg)  # noqa: TRY301
+                                        raise TypeError(
+                                            not_callable_msg
+                                        )  # noqa: TRY301
+
                                     _final_raise()
+
                                 _execute_raise()
+
                             _perform_raise()
+
                         _do_raise()
+
                     _raise_not_callable()
 
             _check_method_exists()
@@ -186,15 +218,21 @@ def _initialize_ai_client() -> ai_api.AIInterface:  # noqa: C901, PLR0915
         return ai_client  # noqa: TRY300
     except NotImplementedError:
         logger.exception("✗ AI client not registered - no implementation found")
-        logger.exception("  Ensure an AI implementation (e.g., openai_impl) is imported")
+        logger.exception(
+            "  Ensure an AI implementation (e.g., openai_impl) is imported"
+        )
         raise SystemExit(1) from None
     except Exception:
         logger.exception("✗ Failed to initialize AI client")
-        logger.exception("  This is a critical error - the service cannot function without AI client")
+        logger.exception(
+            "  This is a critical error - the service cannot function without AI client"
+        )
         raise SystemExit(1) from None
 
 
-def _determine_bot_user_id(client: chat_api.ChatInterface, channel_id: str) -> str | None:
+def _determine_bot_user_id(
+    client: chat_api.ChatInterface, channel_id: str
+) -> str | None:
     """Determine the bot's user ID by sending a test message.
 
     Args:
@@ -220,9 +258,13 @@ def _determine_bot_user_id(client: chat_api.ChatInterface, channel_id: str) -> s
                     client.delete_message(channel_id=channel_id, message_id=msg.id)
                     break
         if not bot_user_id:
-            logger.warning("Could not determine bot user ID - will filter by message content instead")
+            logger.warning(
+                "Could not determine bot user ID - will filter by message content instead"
+            )
     except Exception:
-        logger.exception("Failed to determine bot user ID - will filter by message content instead")
+        logger.exception(
+            "Failed to determine bot user ID - will filter by message content instead"
+        )
 
     return bot_user_id
 
@@ -248,15 +290,21 @@ def _initialize_seen_messages(
     message_check_limit: Final[int] = 5
 
     try:
-        initial_messages = client.get_messages(channel_id=channel_id, limit=message_check_limit)
+        initial_messages = client.get_messages(
+            channel_id=channel_id, limit=message_check_limit
+        )
         for msg in initial_messages:
             seen_message_ids.add(msg.id)
-        logger.info("Initialization complete: marked %d existing messages as seen", len(initial_messages))
+        logger.info(
+            "Initialization complete: marked %d existing messages as seen",
+            len(initial_messages),
+        )
     except Exception:
         logger.exception("Failed to fetch initial messages")
         raise
 
     return seen_message_ids
+
 
 def _validate_new_message(
     msg: chat_api.Message,
@@ -276,7 +324,10 @@ def _validate_new_message(
     """
     return (
         msg.id not in seen_message_ids
-        and ((bot_user_id is None or msg.sender_id != bot_user_id) or msg.content[:len(E2E_PREFIX)] == E2E_PREFIX)
+        and (
+            (bot_user_id is None or msg.sender_id != bot_user_id)
+            or msg.content[: len(E2E_PREFIX)] == E2E_PREFIX
+        )
         and msg.content != FIRST_MESSAGE_CONTENT
     )
 
@@ -298,7 +349,8 @@ def _filter_new_messages(
 
     """
     return [
-        msg for msg in messages
+        msg
+        for msg in messages
         if _validate_new_message(msg, seen_message_ids, bot_user_id)
     ]
 
@@ -330,7 +382,7 @@ def _process_new_message(  # noqa: C901
 
     content = msg.content
     if content.startswith(E2E_PREFIX):
-        content = content[len(E2E_PREFIX):].strip()
+        content = content[len(E2E_PREFIX) :].strip()
 
     # Error type mapping for telemetry
     error_type_map = {
@@ -441,7 +493,14 @@ def _poll_cycle(  # noqa: PLR0913
 
     if new_messages:
         # Process new messages and re-fetch to update our view
-        messages = _process_new_messages(client, new_messages, channel_id, seen_message_ids, message_check_limit, ticket_client)
+        messages = _process_new_messages(
+            client,
+            new_messages,
+            channel_id,
+            seen_message_ids,
+            message_check_limit,
+            ticket_client,
+        )
 
     # Update seen set with all current messages (in case we missed some)
     for msg in messages:
@@ -478,7 +537,14 @@ def _run_polling_loop(
         while True:
             poll_count += 1
             try:
-                _poll_cycle(client, channel_id, message_check_limit, seen_message_ids, bot_user_id, ticket_client)
+                _poll_cycle(
+                    client,
+                    channel_id,
+                    message_check_limit,
+                    seen_message_ids,
+                    bot_user_id,
+                    ticket_client,
+                )
                 time.sleep(polling_interval)
             except KeyboardInterrupt:
                 logger.info("Received interrupt signal, shutting down...")
@@ -513,6 +579,14 @@ def main() -> None:
         raise SystemExit(1)
     logger.info("✓ Discord channel ID configured: %s", channel_id)
 
+    # Start health check HTTP server early so it's available during initialization
+    # Cloud Run requires services to listen on a port for health checks
+    port = int(os.getenv("PORT", "8080"))
+    _start_health_check_server(port)
+    logger.info("Health check server started on port %d", port)
+    # Give the server a moment to start listening
+    time.sleep(0.5)
+
     # Initialize chat client
     logger.info("Initializing chat client...")
     try:
@@ -520,7 +594,9 @@ def main() -> None:
         logger.info("✓ Chat client initialized successfully")
     except Exception:
         logger.exception("✗ Failed to initialize chat client")
-        logger.exception("  This is a critical error - the service cannot function without chat client")
+        logger.exception(
+            "  This is a critical error - the service cannot function without chat client"
+        )
         raise SystemExit(1) from None
 
     # Initialize ticket client (with error handling)
@@ -537,12 +613,6 @@ def main() -> None:
 
     logger.info("Initializing seen messages set...")
     seen_message_ids = _initialize_seen_messages(client, channel_id)
-
-    # Start health check HTTP server for Cloud Run
-    # Cloud Run requires services to listen on a port for health checks
-    port = int(os.getenv("PORT", "8080"))
-    _start_health_check_server(port)
-    logger.info("Health check server thread started (daemon)")
 
     # Small delay to ensure initialization is complete before starting to poll
     time.sleep(0.1)

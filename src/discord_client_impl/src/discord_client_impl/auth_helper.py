@@ -21,7 +21,7 @@ LOGGER = logging.getLogger(__name__)
 BOT_TOKEN_TYPE = "Bot"  # noqa: S105
 
 
-async def get_client_for_user(guild_id: str) -> DiscordClient:  # noqa: C901, PLR0915
+async def get_client_for_user(guild_id: str) -> DiscordClient:
     """Get Discord client for a specific guild with database-stored credentials.
 
     Args:

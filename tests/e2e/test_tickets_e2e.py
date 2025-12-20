@@ -4,11 +4,9 @@ Tests real API calls by sending messages to Discord and verifying bot responses.
 Messages must be prefixed with "E2E: " to be processed by the bot.
 """
 
-import json
 import os
 import subprocess
 import time
-from pathlib import Path
 
 import pytest
 from dotenv import load_dotenv
@@ -56,7 +54,9 @@ def _send_message_and_wait_for_response(
 
     """
     # Get existing messages before sending (to track what's new)
-    messages_before = {msg.id for msg in client.get_messages(channel_id=channel_id, limit=20)}
+    messages_before = {
+        msg.id for msg in client.get_messages(channel_id=channel_id, limit=20)
+    }
 
     # Send message with E2E prefix
     full_message = f"{E2E_PREFIX}{message}"
@@ -113,16 +113,9 @@ def test_get_all_tickets_e2e(main_service: subprocess.Popen[str]) -> None:
 
     # Verify service is still running
     if main_service.poll() is not None:
-        pytest.fail(f"Main service process died before test! Return code: {main_service.poll()}")
-
-    # #region agent log
-    try:
-        debug_log_path = Path("/Users/audreyzhao/OSS-App/.cursor/debug.log")
-        with debug_log_path.open("a") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "pre-fix", "hypothesisId": "A", "location": "test_tickets_e2e.py:111", "message": "Test starting, checking service process", "data": {"pid": main_service.pid, "alive": main_service.poll() is None, "returncode": main_service.returncode, "timestamp": time.time()}, "timestamp": int(time.time() * 1000)}) + "\n")
-    except (OSError, ValueError):
-        pass
-    # #endregion
+        pytest.fail(
+            f"Main service process died before test! Return code: {main_service.poll()}"
+        )
 
     # Get channel ID
     channel_id = _get_channel_id()
@@ -130,24 +123,12 @@ def test_get_all_tickets_e2e(main_service: subprocess.Popen[str]) -> None:
     # Initialize chat client
     client = chat_api.get_client()
 
-    # #region agent log
-    debug_log_path = Path("/Users/audreyzhao/OSS-App/.cursor/debug.log")
-    with debug_log_path.open("a") as f:
-        f.write(json.dumps({"sessionId": "debug-session", "runId": "pre-fix", "hypothesisId": "D", "location": "test_tickets_e2e.py:120", "message": "About to send message", "data": {"channel_id": channel_id, "message": "what are my tickets", "timestamp": time.time()}, "timestamp": int(time.time() * 1000)}) + "\n")
-    # #endregion
-
     # Send message asking for all tickets
     response = _send_message_and_wait_for_response(
         client=client,
         channel_id=channel_id,
         message="what are my tickets",
     )
-
-    # #region agent log
-    debug_log_path = Path("/Users/audreyzhao/OSS-App/.cursor/debug.log")
-    with debug_log_path.open("a") as f:
-        f.write(json.dumps({"sessionId": "debug-session", "runId": "pre-fix", "hypothesisId": "E", "location": "test_tickets_e2e.py:130", "message": "Received response from bot", "data": {"response": response[:200] if response else None, "has_response": response is not None, "timestamp": time.time()}, "timestamp": int(time.time() * 1000)}) + "\n")
-    # #endregion
 
     # Verify we got a response
     assert response is not None, "Bot did not respond to 'what are my tickets'"
@@ -179,16 +160,9 @@ def test_get_open_tickets_e2e(main_service: subprocess.Popen[str]) -> None:
 
     # Verify service is still running
     if main_service.poll() is not None:
-        pytest.fail(f"Main service process died before test! Return code: {main_service.poll()}")
-
-    # #region agent log
-    try:
-        debug_log_path = Path("/Users/audreyzhao/OSS-App/.cursor/debug.log")
-        with debug_log_path.open("a") as f:
-            f.write(json.dumps({"sessionId": "debug-session", "runId": "pre-fix", "hypothesisId": "A", "location": "test_tickets_e2e.py:152", "message": "Test starting, checking service process", "data": {"pid": main_service.pid, "alive": main_service.poll() is None, "returncode": main_service.returncode, "timestamp": time.time()}, "timestamp": int(time.time() * 1000)}) + "\n")
-    except (OSError, ValueError):
-        pass
-    # #endregion
+        pytest.fail(
+            f"Main service process died before test! Return code: {main_service.poll()}"
+        )
 
     # Get channel ID
     channel_id = _get_channel_id()
@@ -196,24 +170,12 @@ def test_get_open_tickets_e2e(main_service: subprocess.Popen[str]) -> None:
     # Initialize chat client
     client = chat_api.get_client()
 
-    # #region agent log
-    debug_log_path = Path("/Users/audreyzhao/OSS-App/.cursor/debug.log")
-    with debug_log_path.open("a") as f:
-        f.write(json.dumps({"sessionId": "debug-session", "runId": "pre-fix", "hypothesisId": "D", "location": "test_tickets_e2e.py:161", "message": "About to send message", "data": {"channel_id": channel_id, "message": "what are my open tickets", "timestamp": time.time()}, "timestamp": int(time.time() * 1000)}) + "\n")
-    # #endregion
-
     # Send message asking for open tickets
     response = _send_message_and_wait_for_response(
         client=client,
         channel_id=channel_id,
         message="what are my open tickets",
     )
-
-    # #region agent log
-    debug_log_path = Path("/Users/audreyzhao/OSS-App/.cursor/debug.log")
-    with debug_log_path.open("a") as f:
-        f.write(json.dumps({"sessionId": "debug-session", "runId": "pre-fix", "hypothesisId": "E", "location": "test_tickets_e2e.py:171", "message": "Received response from bot", "data": {"response": response[:200] if response else None, "has_response": response is not None, "timestamp": time.time()}, "timestamp": int(time.time() * 1000)}) + "\n")
-    # #endregion
 
     # Verify we got a response
     assert response is not None, "Bot did not respond to 'what are my open tickets'"

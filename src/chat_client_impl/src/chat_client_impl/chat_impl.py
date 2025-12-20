@@ -43,7 +43,7 @@ class ChatClient(ChatInterface):
             self._discord_client = DiscordClient(  # type: ignore[assignment]
                 access_token=access_token,
                 token_type=token_type,
-                **discord_kwargs,  # type: ignore[arg-type]
+                **kwargs,  # type: ignore[arg-type]
             )
         else:
             import discord_api  # noqa: PLC0415

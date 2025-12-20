@@ -58,7 +58,7 @@ class SlackChatAdapter(ChatInterface):
     ) -> dict[str, object]:
         """Make an HTTP request to the service."""
         client = self._get_client()
-        resp = client._do_request(  # noqa: SLF001
+        resp = client._do_request(
             method=method,
             path=path,
             params=params,
@@ -165,7 +165,7 @@ class SlackChatAdapter(ChatInterface):
         """
         http_no_content = 204
         try:
-            resp = self._get_client()._do_request(  # noqa: SLF001
+            resp = self._get_client()._do_request(
                 method="DELETE",
                 path=f"/channels/{channel_id}/messages/{message_id}",
             )
